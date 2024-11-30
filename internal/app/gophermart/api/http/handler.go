@@ -1,8 +1,9 @@
 package handler
 
 import (
-	"github.com/RomanAgaltsev/ya_gophermart/internal/config"
 	"net/http"
+
+	"github.com/RomanAgaltsev/ya_gophermart/internal/config"
 )
 
 const (
@@ -14,7 +15,7 @@ type Handler struct {
 	cfg *config.Config
 }
 
-func NewHandlers(cfg *config.Config) *Handler {
+func New(cfg *config.Config) *Handler {
 	return &Handler{
 		cfg: cfg,
 	}
