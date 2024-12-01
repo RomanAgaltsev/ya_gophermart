@@ -1,12 +1,30 @@
 package app
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/server"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/config"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/logger"
+	"github.com/RomanAgaltsev/ya_gophermart/internal/model"
 )
+
+type UserService interface {
+	Register(ctx context.Context, user *model.User) error
+	Login(ctx context.Context, user *model.User) error
+}
+
+type OrderService interface {
+	Create(ctx context.Context, order *model.Order) error
+	UserOrders(ctx context.Context, user *model.User) (model.Orders, error)
+}
+
+type BalanceService interface {
+	UserBalance(ctx context.Context, user *model.User) (*model.Balance, error)
+	BalanceWithdraw(ctx context.Context, user *model.User, order *model.Order, sum float64) error
+	UserWithdrawals(ctx context.Context, user *model.User) (model.Withdrawals, error)
+}
 
 // App struct of the application.
 type App struct {
