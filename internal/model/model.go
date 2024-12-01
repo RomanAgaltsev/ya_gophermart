@@ -18,7 +18,7 @@ type Orders []*Order
 
 type OrderAccrual struct {
 	OrderNumber string  `json:"order"`
-	Status      string  ` json:"status"`
+	Status      string  `json:"status"`
 	Accrual     float64 `json:"accrual"`
 }
 
@@ -32,3 +32,5 @@ type Withdrawal struct {
 	Sum         float64   `json:"sum"`
 	ProcessedAt time.Time `json:"processed_at,omitempty"`
 }
+
+type Withdrawals []*Withdrawal
