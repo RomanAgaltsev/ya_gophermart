@@ -9,7 +9,12 @@ import (
 )
 
 type UserRepository interface {
-    Create(ctx context.Context, user model.User) error
+    CreateUser(ctx context.Context, user model.User) error
+}
+
+type OrderRepository interface {
+    CreateOrder(ctx context.Context, order model.Order) error
+    GetListOfOrders(ctx context.Context, user model.User) (model.Orders, error)
 }
 
 func New(dbpool *pgxpool.Pool) *Repo {
@@ -22,6 +27,14 @@ type Repo struct {
     dbpool *pgxpool.Pool
 }
 
-func (r *Repo) Create(ctx context.Context, user model.User) error {
+func (r *Repo) CreateUser(ctx context.Context, user model.User) error {
     return nil
+}
+
+func (r *Repo) CreateOrder(ctx context.Context, order model.Order) error {
+    return nil
+}
+
+func (r *Repo) GetListOfOrders(ctx context.Context, user model.User) (model.Orders, error) {
+    return nil, nil
 }
