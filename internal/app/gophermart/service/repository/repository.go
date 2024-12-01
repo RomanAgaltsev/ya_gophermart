@@ -8,11 +8,6 @@ import (
     "github.com/jackc/pgx/v5/pgxpool"
 )
 
-type OrderRepository interface {
-    CreateOrder(ctx context.Context, order model.Order) error
-    GetListOfOrders(ctx context.Context, user model.User) (model.Orders, error)
-}
-
 func New(dbpool *pgxpool.Pool) *Repo {
     return &Repo{
         dbpool: dbpool,

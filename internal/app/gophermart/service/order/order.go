@@ -3,23 +3,27 @@ package order
 import (
 	"context"
 
-	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/repository"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/model"
 )
+
+type Repository interface {
+	CreateOrder(ctx context.Context, order model.Order) error
+	GetListOfOrders(ctx context.Context, user model.User) (model.Orders, error)
+}
 
 type Service interface {
 	Create(ctx context.Context, order model.Order) error
 	UserOrders(ctx context.Context, user model.User) (model.Orders, error)
 }
 
-func NewService(repo repository.OrderRepository) Service {
+func NewService(repository Repository) Service {
 	return &service{
-		repo: repo,
+		repository: repository,
 	}
 }
 
 type service struct {
-	repo repository.OrderRepository
+	repository Repository
 }
 
 func (s *service) Create(ctx context.Context, order model.Order) error {
