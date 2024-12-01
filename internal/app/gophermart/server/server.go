@@ -40,8 +40,8 @@ func New(cfg *config.Config) (*http.Server, error) {
 	// -- protected routes
 	router.Group(func(r chi.Router) {
 		tokenAuth := jwtauth.New("HS256", []byte(cfg.SecretKey), nil)
-		router.Use(jwtauth.Verifier(tokenAuth))
-		router.Use(jwtauth.Authenticator(tokenAuth))
+		r.Use(jwtauth.Verifier(tokenAuth))
+		r.Use(jwtauth.Authenticator(tokenAuth))
 
 		r.Post("/api/user/orders", handle.OrderNumberUpload)
 		r.Get("/api/user/orders", handle.OrderListRequest)
