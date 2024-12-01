@@ -6,6 +6,8 @@ import (
     "github.com/RomanAgaltsev/ya_gophermart/internal/model"
 )
 
+var _ Service = (*service)(nil)
+
 type Repository interface {
     CreateUser(ctx context.Context, user *model.User) error
     GetUser(ctx context.Context, login string) (*model.User, error)
