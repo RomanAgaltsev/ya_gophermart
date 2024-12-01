@@ -3,7 +3,6 @@ package repository
 import (
     "context"
 
-    "github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/balance"
     "github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/order"
     "github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/user"
     "github.com/RomanAgaltsev/ya_gophermart/internal/model"
@@ -13,7 +12,6 @@ import (
 
 var _ user.Repository = (*Repo)(nil)
 var _ order.Repository = (*Repo)(nil)
-var _ balance.Repository = (*Repo)(nil)
 
 func New(dbpool *pgxpool.Pool) *Repo {
     return &Repo{
