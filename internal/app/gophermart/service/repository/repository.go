@@ -18,8 +18,12 @@ type Repo struct {
     dbpool *pgxpool.Pool
 }
 
-func (r *Repo) CreateUser(ctx context.Context, user model.User) error {
+func (r *Repo) CreateUser(ctx context.Context, user *model.User) error {
     return nil
+}
+
+func (r *Repo) GetUser(ctx context.Context, login string) (*model.User, error) {
+    return nil, nil
 }
 
 func (r *Repo) CreateOrder(ctx context.Context, order model.Order) error {

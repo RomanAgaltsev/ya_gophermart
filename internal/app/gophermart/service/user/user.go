@@ -7,7 +7,8 @@ import (
 )
 
 type Repository interface {
-    CreateUser(ctx context.Context, user model.User) error
+    CreateUser(ctx context.Context, user *model.User) error
+    GetUser(ctx context.Context, login string) (*model.User, error)
 }
 
 type Service interface {
