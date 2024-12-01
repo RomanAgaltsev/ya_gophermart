@@ -6,6 +6,8 @@ import (
 	"github.com/RomanAgaltsev/ya_gophermart/internal/model"
 )
 
+var _ Service = (*service)(nil)
+
 type Repository interface {
 	GetBalance(ctx context.Context, user *model.User) (*model.Balance, error)
 	Withdraw(ctx context.Context, user *model.User, order *model.Order, sum float64) error
