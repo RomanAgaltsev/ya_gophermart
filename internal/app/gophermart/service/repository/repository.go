@@ -2,13 +2,13 @@ package repository
 
 import (
     "context"
-    "github.com/RomanAgaltsev/ya_gophermart/internal/config"
-    "github.com/RomanAgaltsev/ya_gophermart/internal/database"
     "time"
 
     "github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/balance"
     "github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/order"
     "github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/user"
+    "github.com/RomanAgaltsev/ya_gophermart/internal/config"
+    "github.com/RomanAgaltsev/ya_gophermart/internal/database"
     "github.com/RomanAgaltsev/ya_gophermart/internal/model"
 
     "github.com/jackc/pgx/v5/pgxpool"
