@@ -2,6 +2,9 @@ package repository
 
 import (
     "context"
+    "github.com/RomanAgaltsev/ya_gophermart/internal/config"
+    "github.com/RomanAgaltsev/ya_gophermart/internal/database"
+    "time"
 
     "github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/balance"
     "github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/order"
@@ -15,10 +18,20 @@ var _ user.Repository = (*Repository)(nil)
 var _ order.Repository = (*Repository)(nil)
 var _ balance.Repository = (*Repository)(nil)
 
-func New(dbpool *pgxpool.Pool) *Repository {
+func New(cfg *config.Config) (*Repository, error) {
+    // Create context
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
+
+    // Create connection pool
+    dbpool, err := database.NewConnectionPool(ctx, cfg.DatabaseURI)
+    if err != nil {
+        return nil, err
+    }
+
     return &Repository{
         dbpool: dbpool,
-    }
+    }, nil
 }
 
 type Repository struct {

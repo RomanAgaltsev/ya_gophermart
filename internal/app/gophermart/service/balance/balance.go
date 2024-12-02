@@ -3,11 +3,17 @@ package balance
 import (
 	"context"
 
-	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart"
+	"github.com/RomanAgaltsev/ya_gophermart/internal/config"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/model"
 )
 
-var _ app.BalanceService = (*Service)(nil)
+var _ Service = (*service)(nil)
+
+type Service interface {
+	UserBalance(ctx context.Context, user *model.User) (*model.Balance, error)
+	BalanceWithdraw(ctx context.Context, user *model.User, order *model.Order, sum float64) error
+	UserWithdrawals(ctx context.Context, user *model.User) (model.Withdrawals, error)
+}
 
 type Repository interface {
 	GetBalance(ctx context.Context, user *model.User) (*model.Balance, error)
@@ -15,24 +21,26 @@ type Repository interface {
 	GetListOfWithdrawals(ctx context.Context, user *model.User) (model.Withdrawals, error)
 }
 
-func NewService(repository Repository) *Service {
-	return &Service{
+func NewService(repository Repository, cfg *config.Config) (Service, error) {
+	return &service{
 		repository: repository,
-	}
+		cfg:        cfg,
+	}, nil
 }
 
-type Service struct {
+type service struct {
 	repository Repository
+	cfg        *config.Config
 }
 
-func (s *Service) UserBalance(ctx context.Context, user *model.User) (*model.Balance, error) {
+func (s *service) UserBalance(ctx context.Context, user *model.User) (*model.Balance, error) {
 	return nil, nil
 }
 
-func (s *Service) BalanceWithdraw(ctx context.Context, user *model.User, order *model.Order, sum float64) error {
+func (s *service) BalanceWithdraw(ctx context.Context, user *model.User, order *model.Order, sum float64) error {
 	return nil
 }
 
-func (s *Service) UserWithdrawals(ctx context.Context, user *model.User) (model.Withdrawals, error) {
+func (s *service) UserWithdrawals(ctx context.Context, user *model.User) (model.Withdrawals, error) {
 	return nil, nil
 }
