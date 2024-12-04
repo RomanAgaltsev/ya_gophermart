@@ -14,8 +14,8 @@ var (
     _ Service    = (*service)(nil)
     _ Repository = (*repository.Repository)(nil)
 
-    ErrLoginIsAlreadyTaken = fmt.Errorf("the login as is already taken")
-    ErrWrongLoginPassword  = fmt.Errorf("wrong login/password pair")
+    ErrLoginIsAlreadyTaken = fmt.Errorf("login has already been taken")
+    ErrWrongLoginPassword  = fmt.Errorf("wrong login/password")
 )
 
 type Service interface {

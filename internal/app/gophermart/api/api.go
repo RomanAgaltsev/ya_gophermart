@@ -2,7 +2,7 @@ package api
 
 import (
 	"encoding/json"
-	//"errors"
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -19,6 +19,7 @@ const (
 	ContentTypeText = "text/plain; charset=utf-8"
 )
 
+// Handler handles all HTTP requests.
 type Handler struct {
 	cfg *config.Config
 
@@ -27,74 +28,104 @@ type Handler struct {
 	balanceService balance.Service
 }
 
+// NewHandler is a Handler constructor.
 func NewHandler(cfg *config.Config) *Handler {
 	return &Handler{
 		cfg: cfg,
 	}
 }
 
+// UserRegistrion handles user registration request.
 func (h *Handler) UserRegistrion(w http.ResponseWriter, r *http.Request) {
+	// Get context from request
 	ctx := r.Context()
 
+	// Create decoder
 	decoder := json.NewDecoder(r.Body)
 	defer func() { _ = r.Body.Close() }()
 
+	// Decode user struct from request body
 	var usr model.User
 	if err := decoder.Decode(&usr); err != nil {
+		// Something has gone wrong
 		slog.Info("decoding user", "error", err.Error())
-		http.Error(w, "please look at logs", http.StatusBadRequest)
+		http.Error(w, "invalid request format", http.StatusBadRequest)
 		return
 	}
 
+	// Register user
 	err := h.userService.Register(ctx, &usr)
-	if err != nil {
+	if err != nil && !errors.Is(err, user.ErrLoginIsAlreadyTaken) {
+		// There is an error, but not a conflict
+		slog.Info("user registration", "error", err.Error())
 		http.Error(w, "please look at logs", http.StatusInternalServerError)
+		return
 	}
-	//	if err != nil && !errors.Is(err, user.ErrLogin) {
-	//		slog.Info("failed to short URL", "error", err.Error())
-	//		http.Error(w, "please look at logs", http.StatusInternalServerError)
-	//		return
-	//	}
-	//
-	//	if errors.Is(err, user.ErrConflict) {
-	//		http.Error(w, "please look at logs", http.StatusConflict)
-	//	}
 
+	if errors.Is(err, user.ErrLoginIsAlreadyTaken) {
+		// There is a conflict
+		http.Error(w, user.ErrLoginIsAlreadyTaken.Error(), http.StatusConflict)
+	}
+
+	// Generate JWT token
 	ja := auth.NewAuth(h.cfg.SecretKey)
 	_, tokenString, _ := auth.NewJWTToken(ja, usr.Login)
 	if err != nil {
+		// Something has gone wrong
+		slog.Info("new JWT token", "error", err.Error())
 		http.Error(w, "please look at logs", http.StatusInternalServerError)
 		return
 	}
+
+	// Set a cookie with generated JWT token
 	http.SetCookie(w, auth.NewCookieWithDefaults(tokenString))
 
 	w.WriteHeader(http.StatusOK)
 }
 
+// UserLogin handles user login request.
 func (h *Handler) UserLogin(w http.ResponseWriter, r *http.Request) {
+	// Get context from request
 	ctx := r.Context()
 
+	// Create decoder
 	decoder := json.NewDecoder(r.Body)
 	defer func() { _ = r.Body.Close() }()
 
+	// Decode user struct from request body
 	var usr model.User
 	if err := decoder.Decode(&usr); err != nil {
+		// Something has gone wrong
 		slog.Info("decoding user", "error", err.Error())
-		http.Error(w, "please look at logs", http.StatusBadRequest)
+		http.Error(w, "invalid request format", http.StatusBadRequest)
 		return
 	}
 
+	// Login user
 	err := h.userService.Login(ctx, &usr)
-	if err != nil {
+	if err != nil && !errors.Is(err, user.ErrWrongLoginPassword) {
+		// There is an error, but not with login/password pair
+		slog.Info("user login", "error", err.Error())
 		http.Error(w, "please look at logs", http.StatusInternalServerError)
+		return
 	}
 
+	if errors.Is(err, user.ErrWrongLoginPassword) {
+		// There is a problem with login/password
+		http.Error(w, user.ErrWrongLoginPassword.Error(), http.StatusUnauthorized)
+	}
+
+	// Generate JWT token
 	ja := auth.NewAuth(h.cfg.SecretKey)
 	_, tokenString, _ := auth.NewJWTToken(ja, usr.Login)
 	if err != nil {
+		// Something has gone wrong
+		slog.Info("new JWT token", "error", err.Error())
 		http.Error(w, "please look at logs", http.StatusInternalServerError)
 		return
 	}
+
+	// Set a cookie with generated JWT token
 	http.SetCookie(w, auth.NewCookieWithDefaults(tokenString))
 
 	w.WriteHeader(http.StatusOK)
