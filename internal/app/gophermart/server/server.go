@@ -21,7 +21,7 @@ func New(cfg *config.Config) (*http.Server, error) {
 	}
 
 	// Create handler
-	handle := api.New(cfg)
+	handle := api.NewHandler(cfg)
 
 	// Create router
 	router := chi.NewRouter()

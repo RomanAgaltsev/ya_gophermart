@@ -1,9 +1,16 @@
 package api
 
 import (
+	"encoding/json"
+	//"errors"
+	"log/slog"
 	"net/http"
 
+	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/balance"
+	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/order"
+	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/user"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/config"
+	"github.com/RomanAgaltsev/ya_gophermart/internal/model"
 )
 
 const (
@@ -13,20 +20,65 @@ const (
 
 type Handler struct {
 	cfg *config.Config
+
+	userService    user.Service
+	orderService   order.Service
+	balanceService balance.Service
 }
 
-func New(cfg *config.Config) *Handler {
+func NewHandler(cfg *config.Config) *Handler {
 	return &Handler{
 		cfg: cfg,
 	}
 }
 
 func (h *Handler) UserRegistrion(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 
+	decoder := json.NewDecoder(r.Body)
+	defer func() { _ = r.Body.Close() }()
+
+	var usr model.User
+	if err := decoder.Decode(&usr); err != nil {
+		slog.Info("decoding user", "error", err.Error())
+		http.Error(w, "please look at logs", http.StatusBadRequest)
+		return
+	}
+
+	err := h.userService.Register(ctx, &usr)
+	if err != nil {
+		http.Error(w, "please look at logs", http.StatusInternalServerError)
+	}
+	//	if err != nil && !errors.Is(err, user.ErrLogin) {
+	//		slog.Info("failed to short URL", "error", err.Error())
+	//		http.Error(w, "please look at logs", http.StatusInternalServerError)
+	//		return
+	//	}
+	//
+	//	if errors.Is(err, user.ErrConflict) {
+	//		http.Error(w, "please look at logs", http.StatusConflict)
+	//	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (h *Handler) UserLogin(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 
+	decoder := json.NewDecoder(r.Body)
+	defer func() { _ = r.Body.Close() }()
+
+	var usr model.User
+	if err := decoder.Decode(&usr); err != nil {
+		slog.Info("decoding user", "error", err.Error())
+		http.Error(w, "please look at logs", http.StatusBadRequest)
+		return
+	}
+
+	err := h.userService.Login(ctx, &usr)
+	if err != nil {
+		http.Error(w, "please look at logs", http.StatusInternalServerError)
+	}
 }
 
 func (h *Handler) OrderNumberUpload(w http.ResponseWriter, r *http.Request) {
