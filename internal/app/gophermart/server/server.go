@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"github.com/RomanAgaltsev/ya_gophermart/internal/pkg/auth"
 	"net/http"
 
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/api"
@@ -39,7 +40,7 @@ func New(cfg *config.Config) (*http.Server, error) {
 	})
 	// -- protected routes
 	router.Group(func(r chi.Router) {
-		tokenAuth := jwtauth.New("HS256", []byte(cfg.SecretKey), nil)
+		tokenAuth := auth.NewAuth(cfg.SecretKey)
 		r.Use(jwtauth.Verifier(tokenAuth))
 		r.Use(jwtauth.Authenticator(tokenAuth))
 

@@ -11,6 +11,7 @@ import (
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/user"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/config"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/model"
+	"github.com/RomanAgaltsev/ya_gophermart/internal/pkg/auth"
 )
 
 const (
@@ -59,6 +60,14 @@ func (h *Handler) UserRegistrion(w http.ResponseWriter, r *http.Request) {
 	//		http.Error(w, "please look at logs", http.StatusConflict)
 	//	}
 
+	ja := auth.NewAuth(h.cfg.SecretKey)
+	_, tokenString, _ := auth.NewJWTToken(ja, usr.Login)
+	if err != nil {
+		http.Error(w, "please look at logs", http.StatusInternalServerError)
+		return
+	}
+	http.SetCookie(w, auth.NewCookieWithDefaults(tokenString))
+
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -79,6 +88,16 @@ func (h *Handler) UserLogin(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "please look at logs", http.StatusInternalServerError)
 	}
+
+	ja := auth.NewAuth(h.cfg.SecretKey)
+	_, tokenString, _ := auth.NewJWTToken(ja, usr.Login)
+	if err != nil {
+		http.Error(w, "please look at logs", http.StatusInternalServerError)
+		return
+	}
+	http.SetCookie(w, auth.NewCookieWithDefaults(tokenString))
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (h *Handler) OrderNumberUpload(w http.ResponseWriter, r *http.Request) {
