@@ -2,12 +2,21 @@ package user
 
 import (
     "context"
+    "errors"
+    "fmt"
 
+    "github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/repository"
     "github.com/RomanAgaltsev/ya_gophermart/internal/config"
     "github.com/RomanAgaltsev/ya_gophermart/internal/model"
 )
 
-var _ Service = (*service)(nil)
+var (
+    _ Service    = (*service)(nil)
+    _ Repository = (*repository.Repository)(nil)
+
+    ErrLoginIsAlreadyTaken = fmt.Errorf("the login as is already taken")
+    ErrWrongLoginPassword  = fmt.Errorf("wrong login/password pair")
+)
 
 type Service interface {
     Register(ctx context.Context, user *model.User) error
@@ -32,9 +41,33 @@ type service struct {
 }
 
 func (s *service) Register(ctx context.Context, user *model.User) error {
+    // Create user in the repository
+    err := s.repository.CreateUser(ctx, user)
+
+    // There is a conflict - the login is already exists in the database
+    if errors.Is(err, repository.ErrConflict) {
+        return ErrLoginIsAlreadyTaken
+    }
+
+    // There is another error
+    if err != nil {
+        return err
+    }
+
     return nil
 }
 
 func (s *service) Login(ctx context.Context, user *model.User) error {
+    // Ger user from repository
+    userInRepo, err := s.repository.GetUser(ctx, user.Login)
+    if err != nil {
+        return err
+    }
+
+    // If user doesn`t exist or password is wrong
+    if userInRepo == nil || user.Password != userInRepo.Password {
+        return ErrWrongLoginPassword
+    }
+
     return nil
 }

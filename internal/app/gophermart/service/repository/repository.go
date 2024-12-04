@@ -2,11 +2,11 @@ package repository
 
 import (
     "context"
+    "fmt"
     "time"
 
     "github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/balance"
     "github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/order"
-    "github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/user"
     "github.com/RomanAgaltsev/ya_gophermart/internal/config"
     "github.com/RomanAgaltsev/ya_gophermart/internal/database"
     "github.com/RomanAgaltsev/ya_gophermart/internal/model"
@@ -14,9 +14,12 @@ import (
     "github.com/jackc/pgx/v5/pgxpool"
 )
 
-var _ user.Repository = (*Repository)(nil)
-var _ order.Repository = (*Repository)(nil)
-var _ balance.Repository = (*Repository)(nil)
+var (
+    _ order.Repository   = (*Repository)(nil)
+    _ balance.Repository = (*Repository)(nil)
+
+    ErrConflict = fmt.Errorf("data conflict")
+)
 
 func New(cfg *config.Config) (*Repository, error) {
     // Create context
