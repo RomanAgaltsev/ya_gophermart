@@ -4,11 +4,11 @@ import (
     "context"
     "errors"
     "fmt"
-    "github.com/RomanAgaltsev/ya_gophermart/internal/pkg/auth"
 
     "github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/repository"
     "github.com/RomanAgaltsev/ya_gophermart/internal/config"
     "github.com/RomanAgaltsev/ya_gophermart/internal/model"
+    "github.com/RomanAgaltsev/ya_gophermart/internal/pkg/auth"
 )
 
 var (

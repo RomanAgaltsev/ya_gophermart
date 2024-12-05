@@ -8,7 +8,6 @@ import (
     "time"
 
     "github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/balance"
-    "github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/order"
     "github.com/RomanAgaltsev/ya_gophermart/internal/config"
     "github.com/RomanAgaltsev/ya_gophermart/internal/database"
     "github.com/RomanAgaltsev/ya_gophermart/internal/database/queries"
@@ -21,7 +20,6 @@ import (
 )
 
 var (
-    _ order.Repository   = (*Repository)(nil)
     _ balance.Repository = (*Repository)(nil)
 
     ErrConflict = fmt.Errorf("data conflict")
