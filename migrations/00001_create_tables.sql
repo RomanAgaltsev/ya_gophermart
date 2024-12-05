@@ -4,7 +4,7 @@ CREATE TABLE users
 (
     id         SERIAL PRIMARY KEY,
     login      VARCHAR(20) UNIQUE NOT NULL,
-    password   VARCHAR(20)        NOT NULL,
+    password   VARCHAR(60)        NOT NULL,
     created_at TIMESTAMP          NOT NULL DEFAULT NOW()
 );
 

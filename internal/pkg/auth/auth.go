@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-chi/jwtauth/v5"
 	"github.com/lestrrat-go/jwx/v2/jwt"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserLogin string
@@ -26,6 +27,7 @@ const (
 	UserLoginClaimName UserLogin = "login"
 )
 
+// NewAuth returns new JWTAuth.
 func NewAuth(secretKey string) *jwtauth.JWTAuth {
 	return jwtauth.New(JWTSignAlgorithm, []byte(secretKey), nil)
 }
@@ -44,4 +46,16 @@ func NewCookieWithDefaults(value string) *http.Cookie {
 		MaxAge:   DefaultCookieMaxAge,
 		SameSite: http.SameSiteDefaultMode,
 	}
+}
+
+// HashPassword generates and returns hash of a given password.
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	return string(bytes), err
+}
+
+// CheckPasswordHash compares given password and hash.
+func CheckPasswordHash(password, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
 }
