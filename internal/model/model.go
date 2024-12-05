@@ -46,9 +46,9 @@ type Balance struct {
 }
 
 type Withdrawal struct {
-	OrderNumber string    `json:"order"`
-	Sum         float64   `json:"sum"`
-	ProcessedAt time.Time `json:"processed_at,omitempty"`
+	OrderNumber string    `db:"order" json:"order"`
+	Sum         float64   `db:"sum" json:"sum"`
+	ProcessedAt time.Time `db:"processed_at" json:"processed_at,omitempty"`
 }
 
 type Withdrawals []*Withdrawal
