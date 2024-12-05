@@ -1,7 +1,6 @@
 package api
 
 import (
-    //"encoding/json"
     "errors"
     "log/slog"
     "net/http"
@@ -77,51 +76,6 @@ func (h *Handler) UserRegistrion(w http.ResponseWriter, r *http.Request) {
     http.SetCookie(w, auth.NewCookieWithDefaults(tokenString))
 
     w.WriteHeader(http.StatusOK)
-
-    /*
-
-       // Create decoder
-       decoder := json.NewDecoder(r.Body)
-       defer func() { _ = r.Body.Close() }()
-
-       // Decode user struct from request body
-       var usr model.User
-       if err := decoder.Decode(&usr); err != nil {
-           // Something has gone wrong
-           slog.Info("decoding user", "error", err.Error())
-           http.Error(w, "invalid request format", http.StatusBadRequest)
-           return
-       }
-
-       // Register user
-       err := h.userService.Register(ctx, &usr)
-       if err != nil && !errors.Is(err, user.ErrLoginIsAlreadyTaken) {
-           // There is an error, but not a conflict
-           slog.Info("user registration", "error", err.Error())
-           http.Error(w, "please look at logs", http.StatusInternalServerError)
-           return
-       }
-
-       if errors.Is(err, user.ErrLoginIsAlreadyTaken) {
-           // There is a conflict
-           http.Error(w, user.ErrLoginIsAlreadyTaken.Error(), http.StatusConflict)
-       }
-
-       // Generate JWT token
-       ja := auth.NewAuth(h.cfg.SecretKey)
-       _, tokenString, _ := auth.NewJWTToken(ja, usr.Login)
-       if err != nil {
-           // Something has gone wrong
-           slog.Info("new JWT token", "error", err.Error())
-           http.Error(w, "please look at logs", http.StatusInternalServerError)
-           return
-       }
-
-       // Set a cookie with generated JWT token
-       http.SetCookie(w, auth.NewCookieWithDefaults(tokenString))
-
-       w.WriteHeader(http.StatusOK)
-    */
 }
 
 // UserLogin handles user login request.
@@ -148,7 +102,6 @@ func (h *Handler) UserLogin(w http.ResponseWriter, r *http.Request) {
         // There is a problem with login/password
         slog.Info("user registration", "error", err.Error())
         render.Render(w, r, ErrWrongLoginPassword)
-        //http.Error(w, user.ErrWrongLoginPassword.Error(), http.StatusUnauthorized)
     }
 
     // Generate JWT token
@@ -165,51 +118,6 @@ func (h *Handler) UserLogin(w http.ResponseWriter, r *http.Request) {
     http.SetCookie(w, auth.NewCookieWithDefaults(tokenString))
 
     w.WriteHeader(http.StatusOK)
-
-    /*
-       // Create decoder
-       decoder := json.NewDecoder(r.Body)
-       defer func() { _ = r.Body.Close() }()
-
-       // Decode user struct from request body
-       var usr model.User
-       if err := decoder.Decode(&usr); err != nil {
-           // Something has gone wrong
-           slog.Info("decoding user", "error", err.Error())
-           http.Error(w, "invalid request format", http.StatusBadRequest)
-           return
-       }
-
-       // Login user
-       err := h.userService.Login(ctx, &usr)
-       if err != nil && !errors.Is(err, user.ErrWrongLoginPassword) {
-           // There is an error, but not with login/password pair
-           slog.Info("user login", "error", err.Error())
-           http.Error(w, "please look at logs", http.StatusInternalServerError)
-           return
-       }
-
-       if errors.Is(err, user.ErrWrongLoginPassword) {
-           // There is a problem with login/password
-           http.Error(w, user.ErrWrongLoginPassword.Error(), http.StatusUnauthorized)
-       }
-
-       // Generate JWT token
-       ja := auth.NewAuth(h.cfg.SecretKey)
-       _, tokenString, _ := auth.NewJWTToken(ja, usr.Login)
-       if err != nil {
-           // Something has gone wrong
-           slog.Info("new JWT token", "error", err.Error())
-           http.Error(w, "please look at logs", http.StatusInternalServerError)
-           return
-       }
-
-       // Set a cookie with generated JWT token
-       http.SetCookie(w, auth.NewCookieWithDefaults(tokenString))
-
-       w.WriteHeader(http.StatusOK)
-    */
-
 }
 
 func (h *Handler) OrderNumberUpload(w http.ResponseWriter, r *http.Request) {

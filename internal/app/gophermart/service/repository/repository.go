@@ -2,6 +2,8 @@ package repository
 
 import (
     "context"
+    "database/sql"
+    "errors"
     "fmt"
     "time"
 
@@ -12,6 +14,9 @@ import (
     "github.com/RomanAgaltsev/ya_gophermart/internal/database/queries"
     "github.com/RomanAgaltsev/ya_gophermart/internal/model"
 
+    "github.com/cenkalti/backoff/v4"
+    "github.com/jackc/pgerrcode"
+    "github.com/jackc/pgx/v5/pgconn"
     "github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -33,6 +38,7 @@ func New(cfg *config.Config) (*Repository, error) {
         return nil, err
     }
 
+    // Return Repository struct with new queries
     return &Repository{
         db: dbpool,
         q:  queries.New(dbpool),
@@ -45,11 +51,49 @@ type Repository struct {
 }
 
 func (r *Repository) CreateUser(ctx context.Context, user *model.User) error {
+    var pgErr *pgconn.PgError
+
+    f := func() (error, error) {
+        _, err := r.q.CreateUser(ctx, queries.CreateUserParams{
+            Login:    user.Login,
+            Password: user.Password,
+        })
+        if errors.As(err, &pgErr) && pgerrcode.IsIntegrityConstraintViolation(pgErr.Code) {
+            return ErrConflict, nil
+        }
+        if err != nil {
+            return nil, err
+        }
+        return nil, nil
+    }
+
+    errConf, err := backoff.RetryWithData(f, backoff.NewExponentialBackOff())
+    if err != nil {
+        return err
+    }
+    if errConf != nil {
+        return errConf
+    }
+
     return nil
 }
 
 func (r *Repository) GetUser(ctx context.Context, login string) (*model.User, error) {
-    return nil, nil
+    usr, err := backoff.RetryWithData(func() (queries.User, error) {
+        return r.q.GetUser(ctx, login)
+    }, backoff.NewExponentialBackOff())
+
+    if err != nil && !errors.Is(err, sql.ErrNoRows) {
+        return nil, err
+    }
+    if errors.Is(err, sql.ErrNoRows) {
+        return nil, nil
+    }
+
+    return &model.User{
+        Login:    usr.Login,
+        Password: usr.Password,
+    }, nil
 }
 
 func (r *Repository) CreateOrder(ctx context.Context, order *model.Order) error {
