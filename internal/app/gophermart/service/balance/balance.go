@@ -3,11 +3,15 @@ package balance
 import (
 	"context"
 
+	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/repository"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/config"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/model"
 )
 
-var _ Service = (*service)(nil)
+var (
+	_ Service    = (*service)(nil)
+	_ Repository = (*repository.Repository)(nil)
+)
 
 type Service interface {
 	UserBalance(ctx context.Context, user *model.User) (*model.Balance, error)
