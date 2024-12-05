@@ -13,6 +13,7 @@ CREATE TYPE order_status AS ENUM ('NEW', 'PROCESSING', 'INVALID', 'PROCESSED');
 CREATE TABLE orders
 (
     id          SERIAL PRIMARY KEY,
+    login       VARCHAR(20)         NOT NULL,
     number      VARCHAR(100) UNIQUE NOT NULL,
     status      order_status        NOT NULL DEFAULT 'NEW',
     accrual     NUMERIC(15, 3),
@@ -22,7 +23,7 @@ CREATE TABLE orders
 CREATE TABLE withdrawals
 (
     id           SERIAL PRIMARY KEY,
-    order        VARCHAR(100)   NOT NULL,
+    order_number VARCHAR(100)   NOT NULL,
     sum          NUMERIC(15, 3) NOT NULL,
     processed_at TIMESTAMP      NOT NULL DEFAULT NOW()
 );
