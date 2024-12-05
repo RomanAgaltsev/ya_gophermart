@@ -9,6 +9,7 @@ import (
     "github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/order"
     "github.com/RomanAgaltsev/ya_gophermart/internal/config"
     "github.com/RomanAgaltsev/ya_gophermart/internal/database"
+    "github.com/RomanAgaltsev/ya_gophermart/internal/database/queries"
     "github.com/RomanAgaltsev/ya_gophermart/internal/model"
 
     "github.com/jackc/pgx/v5/pgxpool"
@@ -33,12 +34,14 @@ func New(cfg *config.Config) (*Repository, error) {
     }
 
     return &Repository{
-        dbpool: dbpool,
+        db: dbpool,
+        q:  queries.New(dbpool),
     }, nil
 }
 
 type Repository struct {
-    dbpool *pgxpool.Pool
+    db *pgxpool.Pool
+    q  *queries.Queries
 }
 
 func (r *Repository) CreateUser(ctx context.Context, user *model.User) error {
