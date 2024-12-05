@@ -1,10 +1,28 @@
 package model
 
-import "time"
+import (
+	"fmt"
+	"net/http"
+	"time"
+)
 
 type User struct {
 	Login    string `db:"login" json:"login"`
 	Password string `db:"password" json:"password"`
+}
+
+func (u *User) Bind(r *http.Request) error {
+	if u.Login == "" {
+		return fmt.Errorf("login is a required field")
+	}
+	if u.Password == "" {
+		return fmt.Errorf("password is a required field")
+	}
+	return nil
+}
+
+func (u *User) Render(w http.ResponseWriter, r *http.Request) error {
+	return nil
 }
 
 type Order struct {
