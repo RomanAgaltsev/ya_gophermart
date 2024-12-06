@@ -7,8 +7,7 @@ package queries
 import (
 	"database/sql/driver"
 	"fmt"
-
-	"github.com/jackc/pgx/v5/pgtype"
+	"time"
 )
 
 type OrderStatus string
@@ -60,20 +59,20 @@ type Order struct {
 	Login      string
 	Number     string
 	Status     OrderStatus
-	Accrual    pgtype.Numeric
-	UploadedAt pgtype.Timestamp
+	Accrual    float64
+	UploadedAt time.Time
 }
 
 type User struct {
 	ID        int32
 	Login     string
 	Password  string
-	CreatedAt pgtype.Timestamp
+	CreatedAt time.Time
 }
 
 type Withdrawal struct {
 	ID          int32
 	OrderNumber string
-	Sum         pgtype.Numeric
-	ProcessedAt pgtype.Timestamp
+	Sum         float64
+	ProcessedAt time.Time
 }

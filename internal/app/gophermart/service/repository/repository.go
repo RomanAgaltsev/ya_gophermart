@@ -22,6 +22,11 @@ var (
     ErrConflict = fmt.Errorf("data conflict")
 )
 
+type conflictOrder struct {
+    order *model.Order
+    err   error
+}
+
 func New(cfg *config.Config) (*Repository, error) {
     // Create context
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -91,8 +96,53 @@ func (r *Repository) GetUser(ctx context.Context, login string) (*model.User, er
     }, nil
 }
 
-func (r *Repository) CreateOrder(ctx context.Context, order *model.Order) error {
-    return nil
+func (r *Repository) CreateOrder(ctx context.Context, user *model.User, order *model.Order) (*model.Order, error) {
+    var pgErr *pgconn.PgError
+
+    f := func() (conflictOrder, error) {
+        var co conflictOrder
+
+        _, errStore := r.q.CreateOrder(ctx, queries.CreateOrderParams{
+            Login:  user.Login,
+            Number: order.Number,
+        })
+
+        if errors.As(errStore, &pgErr) && pgerrcode.IsIntegrityConstraintViolation(pgErr.Code) {
+            orderByNumber, errGet := backoff.RetryWithData(func() (queries.Order, error) {
+                return r.q.GetOrder(ctx, order.Number)
+            }, backoff.NewExponentialBackOff())
+
+            if errGet != nil {
+                return co, errGet
+            }
+
+            return conflictOrder{
+                order: &model.Order{
+                    Number:     orderByNumber.Number,
+                    Status:     orderByNumber.Status,
+                    Accrual:    orderByNumber.Accrual,
+                    UploadedAt: orderByNumber.UploadedAt,
+                },
+            }, nil
+        }
+        return co, errStore
+    }
+
+    confOrder, err := backoff.RetryWithData(f, backoff.NewExponentialBackOff())
+    if err != nil {
+        return nil, err
+    }
+
+    if errors.Is(confOrder.err, ErrConflict) {
+        return &model.Order{
+            Number:     confOrder.order.Number,
+            Status:     confOrder.order.Status,
+            Accrual:    confOrder.order.Accrual,
+            UploadedAt: confOrder.order.UploadedAt,
+        }, confOrder.err
+    }
+
+    return nil, nil
 }
 
 func (r *Repository) GetListOfOrders(ctx context.Context, user *model.User) (model.Orders, error) {

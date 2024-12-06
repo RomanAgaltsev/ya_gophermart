@@ -14,12 +14,12 @@ var (
 )
 
 type Service interface {
-	Create(ctx context.Context, order *model.Order) error
+	Create(ctx context.Context, user *model.User, order *model.Order) error
 	UserOrders(ctx context.Context, user *model.User) (model.Orders, error)
 }
 
 type Repository interface {
-	CreateOrder(ctx context.Context, order *model.Order) error
+	CreateOrder(ctx context.Context, user *model.User, order *model.Order) (*model.Order, error)
 	GetListOfOrders(ctx context.Context, user *model.User) (model.Orders, error)
 }
 
@@ -35,7 +35,7 @@ type service struct {
 	cfg        *config.Config
 }
 
-func (s *service) Create(ctx context.Context, order *model.Order) error {
+func (s *service) Create(ctx context.Context, user *model.User, order *model.Order) error {
 	return nil
 }
 
