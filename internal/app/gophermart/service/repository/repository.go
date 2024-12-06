@@ -146,7 +146,24 @@ func (r *Repository) CreateOrder(ctx context.Context, user *model.User, order *m
 }
 
 func (r *Repository) GetListOfOrders(ctx context.Context, user *model.User) (model.Orders, error) {
-    return nil, nil
+    ordersQuery, err := backoff.RetryWithData(func() ([]queries.Order, error) {
+        return r.q.ListOrders(ctx, user.Login)
+    }, backoff.NewExponentialBackOff())
+    if err != nil {
+        return nil, err
+    }
+
+    orders := make([]*model.Order, 0, len(ordersQuery))
+    for _, order := range ordersQuery {
+        orders = append(orders, &model.Order{
+            Number:     order.Number,
+            Status:     order.Status,
+            Accrual:    order.Accrual,
+            UploadedAt: order.UploadedAt,
+        })
+    }
+
+    return orders, nil
 }
 
 func (r *Repository) GetBalance(ctx context.Context, user *model.User) (*model.Balance, error) {
