@@ -9,6 +9,23 @@ import (
 	"context"
 )
 
+const createOrder = `-- name: CreateOrder :one
+INSERT INTO orders (login, number)
+VALUES ($1, $2) RETURNING id
+`
+
+type CreateOrderParams struct {
+	Login  string
+	Number string
+}
+
+func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (int32, error) {
+	row := q.db.QueryRow(ctx, createOrder, arg.Login, arg.Number)
+	var id int32
+	err := row.Scan(&id)
+	return id, err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (login, password)
 VALUES ($1, $2) RETURNING id
@@ -24,6 +41,26 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (int32, 
 	var id int32
 	err := row.Scan(&id)
 	return id, err
+}
+
+const getOrder = `-- name: GetOrder :one
+SELECT id, login, number, status, accrual, uploaded_at
+FROM orders
+WHERE number = $1 LIMIT 1
+`
+
+func (q *Queries) GetOrder(ctx context.Context, number string) (Order, error) {
+	row := q.db.QueryRow(ctx, getOrder, number)
+	var i Order
+	err := row.Scan(
+		&i.ID,
+		&i.Login,
+		&i.Number,
+		&i.Status,
+		&i.Accrual,
+		&i.UploadedAt,
+	)
+	return i, err
 }
 
 const getUser = `-- name: GetUser :one
