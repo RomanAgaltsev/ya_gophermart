@@ -2,6 +2,7 @@ package api
 
 import (
     "errors"
+    "io"
     "log/slog"
     "net/http"
 
@@ -11,6 +12,7 @@ import (
     "github.com/RomanAgaltsev/ya_gophermart/internal/config"
     "github.com/RomanAgaltsev/ya_gophermart/internal/model"
     "github.com/RomanAgaltsev/ya_gophermart/internal/pkg/auth"
+    orderpkg "github.com/RomanAgaltsev/ya_gophermart/internal/pkg/order"
 
     "github.com/go-chi/render"
 )
@@ -121,7 +123,52 @@ func (h *Handler) UserLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) OrderNumberUpload(w http.ResponseWriter, r *http.Request) {
+    /*
+       500 — внутренняя ошибка сервера.
+    */
 
+    // Get context from request
+    ctx := r.Context()
+
+    rBody, _ := io.ReadAll(r.Body)
+    defer func() { _ = r.Body.Close() }()
+
+    orderNumber := string(rBody)
+
+    //400 — неверный формат запроса
+    if orderNumber == "" {
+        render.Render(w, r, ErrBadRequest)
+        return
+    }
+
+    // 422 — неверный формат номера заказа
+    if !orderpkg.IsNumberValid(orderNumber) {
+        render.Render(w, r, ErrInvalidOrderNumber)
+        return
+    }
+
+    //ordr := model.Order{}
+
+    // 409 — номер заказа уже был загружен другим пользователем
+    //    err := h.orderService.Create(ctx, &ordr)
+    //    if err != nil && !errors.Is(err, user.ErrLoginIsAlreadyTaken) {
+    //        // There is an error, but not a conflict
+    //        slog.Info("user registration", "error", err.Error())
+    //        render.Render(w, r, ErrorRenderer(err))
+    //        return
+    //    }
+
+    //    if errors.Is(err, user.ErrLoginIsAlreadyTaken) {
+    //        // There is a conflict
+    //        slog.Info("user registration", "error", err.Error())
+    //        render.Render(w, r, ErrLoginIsAlreadyTaken)
+    //    }
+
+    // 200 — номер заказа уже был загружен этим пользователем;
+    w.WriteHeader(http.StatusOK)
+
+    // 202 — новый номер заказа принят в обработку;
+    w.WriteHeader(http.StatusAccepted)
 }
 
 func (h *Handler) OrderListRequest(w http.ResponseWriter, r *http.Request) {
