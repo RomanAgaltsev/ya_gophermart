@@ -72,6 +72,7 @@ type User struct {
 
 type Withdrawal struct {
 	ID          int32
+	Login       string
 	OrderNumber string
 	Sum         float64
 	ProcessedAt time.Time
