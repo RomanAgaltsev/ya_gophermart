@@ -52,7 +52,7 @@ func (h *Handler) UserRegistrion(w http.ResponseWriter, r *http.Request) {
 
     var usr model.User
     if err := render.Bind(r, &usr); err != nil {
-        render.Render(w, r, ErrBadRequest)
+        render.Render(w, r, ErrorRenderer(err))
         return
     }
 
@@ -61,7 +61,7 @@ func (h *Handler) UserRegistrion(w http.ResponseWriter, r *http.Request) {
     if err != nil && !errors.Is(err, user.ErrLoginIsAlreadyTaken) {
         // There is an error, but not a conflict
         slog.Info(msgUserRegistration, argError, err.Error())
-        render.Render(w, r, ErrorRenderer(err))
+        render.Render(w, r, ServerErrorRenderer(err))
         return
     }
 
@@ -95,7 +95,7 @@ func (h *Handler) UserLogin(w http.ResponseWriter, r *http.Request) {
 
     var usr model.User
     if err := render.Bind(r, &usr); err != nil {
-        render.Render(w, r, ErrBadRequest)
+        render.Render(w, r, ErrorRenderer(err))
         return
     }
 

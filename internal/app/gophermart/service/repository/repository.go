@@ -178,10 +178,14 @@ func (r *Repository) GetBalance(ctx context.Context, user *model.User) (*model.B
     return nil, nil
 }
 
-func (r *Repository) Withdraw(ctx context.Context, user *model.User, order *model.Order, sum float64) error {
+func (r *Repository) Withdraw(ctx context.Context, user *model.User, orderNumber string, sum float64) error {
     return nil
 }
 
 func (r *Repository) GetListOfWithdrawals(ctx context.Context, user *model.User) (model.Withdrawals, error) {
+    withdrawalsQuery, err := backoff.RetryWithData(func() ([]queries.Withdrawal, error) {
+        return r.q.
+    }, backoff.NewExponentialBackOff())
+
     return nil, nil
 }

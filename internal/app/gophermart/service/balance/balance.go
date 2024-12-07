@@ -24,7 +24,7 @@ type Service interface {
 
 type Repository interface {
 	GetBalance(ctx context.Context, user *model.User) (*model.Balance, error)
-	Withdraw(ctx context.Context, user *model.User, order *model.Order, sum float64) error
+	Withdraw(ctx context.Context, user *model.User, orderNumber string, sum float64) error
 	GetListOfWithdrawals(ctx context.Context, user *model.User) (model.Withdrawals, error)
 }
 
@@ -45,9 +45,9 @@ func (s *service) UserBalance(ctx context.Context, user *model.User) (*model.Bal
 }
 
 func (s *service) BalanceWithdraw(ctx context.Context, user *model.User, orderNumber string, sum float64) error {
-	return nil
+	return s.repository.Withdraw(ctx, user, orderNumber, sum)
 }
 
 func (s *service) UserWithdrawals(ctx context.Context, user *model.User) (model.Withdrawals, error) {
-	return nil, nil
+	return s.repository.GetListOfWithdrawals(ctx, user)
 }
