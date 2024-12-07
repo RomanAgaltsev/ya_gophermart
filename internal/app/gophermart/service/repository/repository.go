@@ -184,8 +184,21 @@ func (r *Repository) Withdraw(ctx context.Context, user *model.User, orderNumber
 
 func (r *Repository) GetListOfWithdrawals(ctx context.Context, user *model.User) (model.Withdrawals, error) {
     withdrawalsQuery, err := backoff.RetryWithData(func() ([]queries.Withdrawal, error) {
-        return r.q.
+        return r.q.ListWithdrawals(ctx, user.Login)
     }, backoff.NewExponentialBackOff())
+    if err != nil {
+        return nil, err
+    }
 
-    return nil, nil
+    withdrawals := make([]*model.Withdrawal, 0, len(withdrawalsQuery))
+    for _, withdrawal := range withdrawalsQuery {
+        withdrawals = append(withdrawals, &model.Withdrawal{
+            Login:       withdrawal.Login,
+            OrderNumber: withdrawal.OrderNumber,
+            Sum:         withdrawal.Sum,
+            ProcessedAt: withdrawal.ProcessedAt,
+        })
+    }
+
+    return withdrawals, nil
 }
