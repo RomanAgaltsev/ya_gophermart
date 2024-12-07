@@ -11,6 +11,7 @@ require (
 	github.com/jackc/pgx/v5 v5.7.1
 	github.com/lestrrat-go/jwx/v2 v2.0.20
 	github.com/pressly/goose/v3 v3.23.0
+	go.uber.org/mock v0.5.0
 	go.uber.org/zap v1.27.0
 	go.uber.org/zap/exp v0.3.0
 	golang.org/x/crypto v0.28.0
