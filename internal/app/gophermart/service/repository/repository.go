@@ -58,12 +58,15 @@ func (r *Repository) CreateUser(ctx context.Context, user *model.User) error {
             Login:    user.Login,
             Password: user.Password,
         })
+
         if errors.As(err, &pgErr) && pgerrcode.IsIntegrityConstraintViolation(pgErr.Code) {
             return ErrConflict, nil
         }
+
         if err != nil {
             return nil, err
         }
+
         return nil, nil
     }
 
@@ -71,6 +74,7 @@ func (r *Repository) CreateUser(ctx context.Context, user *model.User) error {
     if err != nil {
         return err
     }
+
     if errConf != nil {
         return errConf
     }
@@ -86,6 +90,7 @@ func (r *Repository) GetUser(ctx context.Context, login string) (*model.User, er
     if err != nil && !errors.Is(err, sql.ErrNoRows) {
         return nil, err
     }
+
     if errors.Is(err, sql.ErrNoRows) {
         return nil, nil
     }
@@ -96,14 +101,14 @@ func (r *Repository) GetUser(ctx context.Context, login string) (*model.User, er
     }, nil
 }
 
-func (r *Repository) CreateOrder(ctx context.Context, user *model.User, order *model.Order) (*model.Order, error) {
+func (r *Repository) CreateOrder(ctx context.Context, order *model.Order) (*model.Order, error) {
     var pgErr *pgconn.PgError
 
     f := func() (conflictOrder, error) {
         var co conflictOrder
 
         _, errStore := r.q.CreateOrder(ctx, queries.CreateOrderParams{
-            Login:  user.Login,
+            Login:  order.Login,
             Number: order.Number,
         })
 
@@ -118,6 +123,7 @@ func (r *Repository) CreateOrder(ctx context.Context, user *model.User, order *m
 
             return conflictOrder{
                 order: &model.Order{
+                    Login:      orderByNumber.Login,
                     Number:     orderByNumber.Number,
                     Status:     orderByNumber.Status,
                     Accrual:    orderByNumber.Accrual,
@@ -125,6 +131,7 @@ func (r *Repository) CreateOrder(ctx context.Context, user *model.User, order *m
                 },
             }, nil
         }
+
         return co, errStore
     }
 
@@ -156,6 +163,7 @@ func (r *Repository) GetListOfOrders(ctx context.Context, user *model.User) (mod
     orders := make([]*model.Order, 0, len(ordersQuery))
     for _, order := range ordersQuery {
         orders = append(orders, &model.Order{
+            Login:      order.Login,
             Number:     order.Number,
             Status:     order.Status,
             Accrual:    order.Accrual,

@@ -2,9 +2,10 @@ package model
 
 import (
 	"fmt"
-	"github.com/RomanAgaltsev/ya_gophermart/internal/database/queries"
 	"net/http"
 	"time"
+
+	"github.com/RomanAgaltsev/ya_gophermart/internal/database/queries"
 )
 
 type User struct {
@@ -27,6 +28,7 @@ func (u *User) Render(w http.ResponseWriter, r *http.Request) error {
 }
 
 type Order struct {
+	Login      string              `db:"login" json:"-"`
 	Number     string              `db:"number" json:"number"`
 	Status     queries.OrderStatus `db:"status" json:"status"`
 	Accrual    float64             `db:"accrual" json:"accrual"`
@@ -34,6 +36,10 @@ type Order struct {
 }
 
 type Orders []*Order
+
+func (Orders) Render(w http.ResponseWriter, r *http.Request) error {
+	return nil
+}
 
 type OrderAccrual struct {
 	OrderNumber string              `json:"order"`
