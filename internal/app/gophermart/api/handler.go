@@ -50,7 +50,7 @@ func NewHandler(cfg *config.Config) *Handler {
 func (h *Handler) UserRegistrion(w http.ResponseWriter, r *http.Request) {
     var usr model.User
     if err := render.Bind(r, &usr); err != nil {
-        render.Render(w, r, ErrorRenderer(err))
+        _ = render.Render(w, r, ErrorRenderer(err))
         return
     }
 
@@ -62,14 +62,14 @@ func (h *Handler) UserRegistrion(w http.ResponseWriter, r *http.Request) {
     if err != nil && !errors.Is(err, user.ErrLoginIsAlreadyTaken) {
         // There is an error, but not a conflict
         slog.Info(msgUserRegistration, argError, err.Error())
-        render.Render(w, r, ServerErrorRenderer(err))
+        _ = render.Render(w, r, ServerErrorRenderer(err))
         return
     }
 
     if errors.Is(err, user.ErrLoginIsAlreadyTaken) {
         // There is a conflict
         slog.Info(msgUserRegistration, argError, err.Error())
-        render.Render(w, r, ErrLoginIsAlreadyTaken)
+        _ = render.Render(w, r, ErrLoginIsAlreadyTaken)
         return
     }
 
@@ -79,7 +79,7 @@ func (h *Handler) UserRegistrion(w http.ResponseWriter, r *http.Request) {
     if err != nil {
         // Something has gone wrong
         slog.Info(msgNewJWTToken, argError, err.Error())
-        render.Render(w, r, ServerErrorRenderer(err))
+        _ = render.Render(w, r, ServerErrorRenderer(err))
         return
     }
 
@@ -93,7 +93,7 @@ func (h *Handler) UserRegistrion(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UserLogin(w http.ResponseWriter, r *http.Request) {
     var usr model.User
     if err := render.Bind(r, &usr); err != nil {
-        render.Render(w, r, ErrorRenderer(err))
+        _ = render.Render(w, r, ErrorRenderer(err))
         return
     }
 
@@ -105,14 +105,14 @@ func (h *Handler) UserLogin(w http.ResponseWriter, r *http.Request) {
     if err != nil && !errors.Is(err, user.ErrWrongLoginPassword) {
         // There is an error, but not with login/password pair
         slog.Info(msgUserLogin, argError, err.Error())
-        render.Render(w, r, ServerErrorRenderer(err))
+        _ = render.Render(w, r, ServerErrorRenderer(err))
         return
     }
 
     if errors.Is(err, user.ErrWrongLoginPassword) {
         // There is a problem with login/password
         slog.Info(msgUserLogin, argError, err.Error())
-        render.Render(w, r, ErrWrongLoginPassword)
+        _ = render.Render(w, r, ErrWrongLoginPassword)
         return
     }
 
@@ -122,7 +122,7 @@ func (h *Handler) UserLogin(w http.ResponseWriter, r *http.Request) {
     if err != nil {
         // Something has gone wrong
         slog.Info(msgNewJWTToken, argError, err.Error())
-        render.Render(w, r, ServerErrorRenderer(err))
+        _ = render.Render(w, r, ServerErrorRenderer(err))
         return
     }
 
@@ -139,12 +139,12 @@ func (h *Handler) OrderNumberUpload(w http.ResponseWriter, r *http.Request) {
     orderNumber := string(rBody)
 
     if orderNumber == "" {
-        render.Render(w, r, ErrBadRequest)
+        _ = render.Render(w, r, ErrBadRequest)
         return
     }
 
     if !orderpkg.IsNumberValid(orderNumber) {
-        render.Render(w, r, ErrInvalidOrderNumber)
+        _ = render.Render(w, r, ErrInvalidOrderNumber)
         return
     }
 
@@ -160,21 +160,21 @@ func (h *Handler) OrderNumberUpload(w http.ResponseWriter, r *http.Request) {
     if err != nil && !errors.Is(err, order.ErrOrderUploadedByThisLogin) && !errors.Is(err, order.ErrOrderUploadedByAnotherLogin) {
         // There is an error, but not a conflict
         slog.Info(msgOrderNumberUpload, argError, err.Error())
-        render.Render(w, r, ServerErrorRenderer(err))
+        _ = render.Render(w, r, ServerErrorRenderer(err))
         return
     }
 
     if errors.Is(err, order.ErrOrderUploadedByThisLogin) {
         // There is a conflict
         slog.Info(msgOrderNumberUpload, argError, err.Error())
-        render.Render(w, r, ErrOrderUploadedByThisLogin)
+        _ = render.Render(w, r, ErrOrderUploadedByThisLogin)
         return
     }
 
     if errors.Is(err, order.ErrOrderUploadedByAnotherLogin) {
         // There is a conflict
         slog.Info(msgOrderNumberUpload, argError, err.Error())
-        render.Render(w, r, ErrOrderUploadedByAnotherLogin)
+        _ = render.Render(w, r, ErrOrderUploadedByAnotherLogin)
         return
     }
 
@@ -190,19 +190,19 @@ func (h *Handler) OrderListRequest(w http.ResponseWriter, r *http.Request) {
     orders, err := h.orderService.UserOrders(ctx, &usr)
     if err != nil {
         slog.Info(msgOrderList, argError, err.Error())
-        render.Render(w, r, ServerErrorRenderer(err))
+        _ = render.Render(w, r, ServerErrorRenderer(err))
         return
     }
 
     if len(orders) == 0 {
-        render.Render(w, r, ErrNoOrders)
+        _ = render.Render(w, r, ErrNoOrders)
         return
     }
 
     w.WriteHeader(http.StatusOK)
 
     if err := render.Render(w, r, orders); err != nil {
-        render.Render(w, r, ErrorRenderer(err))
+        _ = render.Render(w, r, ErrorRenderer(err))
         return
     }
 }
@@ -216,14 +216,14 @@ func (h *Handler) UserBalanceRequest(w http.ResponseWriter, r *http.Request) {
     userBalance, err := h.balanceService.UserBalance(ctx, usr)
     if err != nil {
         slog.Info(msgUserBalance, argError, err.Error())
-        render.Render(w, r, ServerErrorRenderer(err))
+        _ = render.Render(w, r, ServerErrorRenderer(err))
         return
     }
 
     w.WriteHeader(http.StatusOK)
 
     if err := render.Render(w, r, userBalance); err != nil {
-        render.Render(w, r, ErrorRenderer(err))
+        _ = render.Render(w, r, ErrorRenderer(err))
         return
     }
 }
@@ -232,11 +232,11 @@ func (h *Handler) WithdrawRequest(w http.ResponseWriter, r *http.Request) {
     var withdrawal model.Withdrawal
 
     if err := render.Bind(r, &withdrawal); err != nil {
-        render.Render(w, r, ErrBadRequest)
+        _ = render.Render(w, r, ErrBadRequest)
     }
 
     if !orderpkg.IsNumberValid(withdrawal.OrderNumber) {
-        render.Render(w, r, ErrInvalidOrderNumber)
+        _ = render.Render(w, r, ErrInvalidOrderNumber)
         return
     }
 
@@ -249,14 +249,14 @@ func (h *Handler) WithdrawRequest(w http.ResponseWriter, r *http.Request) {
     if err != nil && !errors.Is(err, balance.ErrNotEnoughBalance) {
         // There is an error, but not with balance
         slog.Info(msgWithdraw, argError, err.Error())
-        render.Render(w, r, ServerErrorRenderer(err))
+        _ = render.Render(w, r, ServerErrorRenderer(err))
         return
     }
 
     if errors.Is(err, balance.ErrNotEnoughBalance) {
         // There is a problem with balance - not enough to withdraw the sum
         slog.Info(msgWithdraw, argError, err.Error())
-        render.Render(w, r, ErrNotEnoughBalance)
+        _ = render.Render(w, r, ErrNotEnoughBalance)
         return
     }
 
@@ -273,19 +273,19 @@ func (h *Handler) WithdrawalsInformationRequest(w http.ResponseWriter, r *http.R
     if err != nil {
         // There is an error, but not with withdrawals
         slog.Info(msgUserWithdrawals, argError, err.Error())
-        render.Render(w, r, ServerErrorRenderer(err))
+        _ = render.Render(w, r, ServerErrorRenderer(err))
         return
     }
 
     if len(withdrawals) == 0 {
-        render.Render(w, r, ErrNoWithdrawals)
+        _ = render.Render(w, r, ErrNoWithdrawals)
         return
     }
 
     w.WriteHeader(http.StatusOK)
 
     if err := render.Render(w, r, withdrawals); err != nil {
-        render.Render(w, r, ErrorRenderer(err))
+        _ = render.Render(w, r, ErrorRenderer(err))
         return
     }
 }
