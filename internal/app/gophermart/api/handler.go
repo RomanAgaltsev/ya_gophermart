@@ -25,6 +25,8 @@ const (
     msgUserLogin         = "user login"
     msgOrderNumberUpload = "order number upload"
     msgOrderList         = "get orders list"
+    msgWithdraw          = "withdraw"
+    msgUserWithdrawals   = "user withdrawals request"
 )
 
 // Handler handles all HTTP requests.
@@ -67,6 +69,7 @@ func (h *Handler) UserRegistrion(w http.ResponseWriter, r *http.Request) {
         // There is a conflict
         slog.Info(msgUserRegistration, argError, err.Error())
         render.Render(w, r, ErrLoginIsAlreadyTaken)
+        return
     }
 
     // Generate JWT token
@@ -109,6 +112,7 @@ func (h *Handler) UserLogin(w http.ResponseWriter, r *http.Request) {
         // There is a problem with login/password
         slog.Info(msgUserLogin, argError, err.Error())
         render.Render(w, r, ErrWrongLoginPassword)
+        return
     }
 
     // Generate JWT token
@@ -170,7 +174,7 @@ func (h *Handler) OrderNumberUpload(w http.ResponseWriter, r *http.Request) {
         // There is a conflict
         slog.Info(msgOrderNumberUpload, argError, err.Error())
         render.Render(w, r, ErrOrderUploadedByAnotherLogin)
-
+        return
     }
 
     w.WriteHeader(http.StatusAccepted)
@@ -198,6 +202,7 @@ func (h *Handler) OrderListRequest(w http.ResponseWriter, r *http.Request) {
 
     if err := render.Render(w, r, orders); err != nil {
         render.Render(w, r, ErrorRenderer(err))
+        return
     }
 }
 
@@ -205,10 +210,64 @@ func (h *Handler) UserBalanceRequest(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (h *Handler) WithdrawalRequest(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) WithdrawRequest(w http.ResponseWriter, r *http.Request) {
+    // Get context from request
+    ctx := r.Context()
 
+    var withdrawal model.Withdrawal
+
+    if err := render.Bind(r, &withdrawal); err != nil {
+        render.Render(w, r, ErrBadRequest)
+    }
+
+    if !orderpkg.IsNumberValid(withdrawal.OrderNumber) {
+        render.Render(w, r, ErrInvalidOrderNumber)
+        return
+    }
+
+    usr := &model.User{}
+
+    err := h.balanceService.BalanceWithdraw(ctx, usr, withdrawal.OrderNumber, withdrawal.Sum)
+    if err != nil && !errors.Is(err, balance.ErrNotEnoughBalance) {
+        // There is an error, but not with balance
+        slog.Info(msgWithdraw, argError, err.Error())
+        render.Render(w, r, ServerErrorRenderer(err))
+        return
+    }
+
+    if errors.Is(err, balance.ErrNotEnoughBalance) {
+        // There is a problem with balance - not enough to withdraw the sum
+        slog.Info(msgWithdraw, argError, err.Error())
+        render.Render(w, r, ErrNotEnoughBalance)
+        return
+    }
+
+    w.WriteHeader(http.StatusOK)
 }
 
 func (h *Handler) WithdrawalsInformationRequest(w http.ResponseWriter, r *http.Request) {
+    // Get context from request
+    ctx := r.Context()
 
+    usr := &model.User{}
+
+    withdrawals, err := h.balanceService.UserWithdrawals(ctx, usr)
+    if err != nil {
+        // There is an error, but not with withdrawals
+        slog.Info(msgUserWithdrawals, argError, err.Error())
+        render.Render(w, r, ServerErrorRenderer(err))
+        return
+    }
+
+    if len(withdrawals) == 0 {
+        render.Render(w, r, ErrNoWithdrawals)
+        return
+    }
+
+    w.WriteHeader(http.StatusOK)
+
+    if err := render.Render(w, r, withdrawals); err != nil {
+        render.Render(w, r, ErrorRenderer(err))
+        return
+    }
 }

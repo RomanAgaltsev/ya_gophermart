@@ -16,8 +16,10 @@ type ErrorResponse struct {
 var (
 	ErrOrderUploadedByThisLogin    = &ErrorResponse{StatusCode: 200, Message: "Order number has already been uploaded by this user"}
 	ErrNoOrders                    = &ErrorResponse{StatusCode: 204, Message: "There are no orders"}
+	ErrNoWithdrawals               = &ErrorResponse{StatusCode: 204, Message: "There are no withdrawals"}
 	ErrBadRequest                  = &ErrorResponse{StatusCode: 400, Message: "Bad request"}
 	ErrWrongLoginPassword          = &ErrorResponse{StatusCode: 401, Message: "Wrong login/password"}
+	ErrNotEnoughBalance            = &ErrorResponse{StatusCode: 402, Message: "Not enough balance for withdrawal"}
 	ErrLoginIsAlreadyTaken         = &ErrorResponse{StatusCode: 409, Message: "Login has already been taken"}
 	ErrOrderUploadedByAnotherLogin = &ErrorResponse{StatusCode: 409, Message: "Order number has already been uploaded by another user"}
 	ErrInvalidOrderNumber          = &ErrorResponse{StatusCode: 422, Message: "Invalid order number"}

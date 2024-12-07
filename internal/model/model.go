@@ -58,4 +58,12 @@ type Withdrawal struct {
 	ProcessedAt time.Time `db:"processed_at" json:"processed_at,omitempty"`
 }
 
+func (w *Withdrawal) Bind(r *http.Request) error {
+	return nil
+}
+
 type Withdrawals []*Withdrawal
+
+func (Withdrawals) Render(w http.ResponseWriter, r *http.Request) error {
+	return nil
+}
