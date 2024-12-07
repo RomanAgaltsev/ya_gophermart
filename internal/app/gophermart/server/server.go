@@ -61,7 +61,7 @@ func New(cfg *config.Config) (*http.Server, error) {
 		r.Post("/api/user/orders", handle.OrderNumberUpload)
 		r.Get("/api/user/orders", handle.OrderListRequest)
 		r.Get("/api/user/balance", handle.UserBalanceRequest)
-		r.Post("/api/user/balance/withdraw", handle.WithdrawalRequest)
+		r.Post("/api/user/balance/withdraw", handle.WithdrawRequest)
 		r.Get("/api/user/withdrawals", handle.WithdrawalsInformationRequest)
 	})
 

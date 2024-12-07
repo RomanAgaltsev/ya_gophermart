@@ -23,6 +23,7 @@ CREATE TABLE orders
 CREATE TABLE withdrawals
 (
     id           SERIAL PRIMARY KEY,
+    login        VARCHAR(20)      NOT NULL,
     order_number VARCHAR(100)     NOT NULL,
     sum          DOUBLE PRECISION NOT NULL,
     processed_at TIMESTAMP        NOT NULL DEFAULT NOW()
