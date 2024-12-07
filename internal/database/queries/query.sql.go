@@ -136,7 +136,8 @@ func (q *Queries) ListOrders(ctx context.Context, login string) ([]Order, error)
 const listWithdrawals = `-- name: ListWithdrawals :many
 SELECT id, login, order_number, sum, processed_at
 FROM withdrawals
-WHERE login = $1 LIMIT 1
+WHERE login = $1
+ORDER BY processed_at DESC
 `
 
 func (q *Queries) ListWithdrawals(ctx context.Context, login string) ([]Withdrawal, error) {

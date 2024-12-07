@@ -29,4 +29,5 @@ VALUES ($1, $2, $3) RETURNING id;
 -- name: ListWithdrawals :many
 SELECT *
 FROM withdrawals
-WHERE login = $1 LIMIT 1;
+WHERE login = $1
+ORDER BY processed_at DESC;
