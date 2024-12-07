@@ -15,6 +15,7 @@ type ErrorResponse struct {
 
 var (
 	ErrOrderUploadedByThisLogin    = &ErrorResponse{StatusCode: 200, Message: "Order number has already been uploaded by this user"}
+	ErrNoOrders                    = &ErrorResponse{StatusCode: 204, Message: "There are no orders"}
 	ErrBadRequest                  = &ErrorResponse{StatusCode: 400, Message: "Bad request"}
 	ErrWrongLoginPassword          = &ErrorResponse{StatusCode: 401, Message: "Wrong login/password"}
 	ErrLoginIsAlreadyTaken         = &ErrorResponse{StatusCode: 409, Message: "Login has already been taken"}

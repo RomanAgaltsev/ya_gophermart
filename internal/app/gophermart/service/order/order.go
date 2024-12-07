@@ -58,5 +58,25 @@ func (s *service) Create(ctx context.Context, order *model.Order) error {
 }
 
 func (s *service) UserOrders(ctx context.Context, user *model.User) (model.Orders, error) {
-	return nil, nil
+	return s.repository.GetListOfOrders(ctx, user)
+	/*
+		userOrders, err := s.repository.GetListOfOrders(ctx, user)
+		if err != nil {
+			return nil, err
+		}
+
+		orders := make(model.Orders, 0, len(userOrders))
+
+		for _, ordr := range userOrders {
+			orders = append(orders, &model.Order{
+				Login:      ordr.Login,
+				Number:     ordr.Number,
+				Status:     ordr.Status,
+				Accrual:    ordr.Accrual,
+				UploadedAt: ordr.UploadedAt,
+			})
+		}
+
+		return orders, nil
+	*/
 }

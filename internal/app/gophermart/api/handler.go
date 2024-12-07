@@ -18,15 +18,13 @@ import (
 )
 
 const (
-    ContentTypeJSON = "application/json"
-    ContentTypeText = "text/plain; charset=utf-8"
-
     argError = "error"
 
     msgNewJWTToken       = "new JWT token"
     msgUserRegistration  = "user registration"
     msgUserLogin         = "user login"
     msgOrderNumberUpload = "order number upload"
+    msgOrderList         = "get orders list"
 )
 
 // Handler handles all HTTP requests.
@@ -179,7 +177,28 @@ func (h *Handler) OrderNumberUpload(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) OrderListRequest(w http.ResponseWriter, r *http.Request) {
+    // Get context from request
+    ctx := r.Context()
 
+    usr := model.User{}
+
+    orders, err := h.orderService.UserOrders(ctx, &usr)
+    if err != nil {
+        slog.Info(msgOrderList, argError, err.Error())
+        render.Render(w, r, ServerErrorRenderer(err))
+        return
+    }
+
+    if len(orders) == 0 {
+        render.Render(w, r, ErrNoOrders)
+        return
+    }
+
+    w.WriteHeader(http.StatusOK)
+
+    if err := render.Render(w, r, orders); err != nil {
+        render.Render(w, r, ErrorRenderer(err))
+    }
 }
 
 func (h *Handler) UserBalanceRequest(w http.ResponseWriter, r *http.Request) {

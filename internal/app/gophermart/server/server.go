@@ -14,6 +14,11 @@ import (
 	"github.com/go-chi/render"
 )
 
+const (
+	ContentTypeJSON = "application/json"
+	ContentTypeText = "text/plain; charset=utf-8"
+)
+
 var ErrRunAddressIsEmpty = fmt.Errorf("configuration: HTTP server run address is empty")
 
 // New creates new http server with middleware and routes
@@ -31,7 +36,8 @@ func New(cfg *config.Config) (*http.Server, error) {
 	// Enable common middleware
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
-	router.Use(middleware.Compress(5, api.ContentTypeJSON, api.ContentTypeText))
+	router.Use(middleware.Compress(5, ContentTypeJSON, ContentTypeText))
+	router.Use(render.SetContentType(render.ContentTypeJSON))
 
 	// Replace default handlers
 	router.MethodNotAllowed(methodNotAllowedHandler)
@@ -66,12 +72,12 @@ func New(cfg *config.Config) (*http.Server, error) {
 }
 
 func methodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-type", api.ContentTypeJSON)
+	w.Header().Set("Content-type", ContentTypeJSON)
 	w.WriteHeader(405)
 	render.Render(w, r, ErrMethodNotAllowed)
 }
 func notFoundHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-type", api.ContentTypeJSON)
+	w.Header().Set("Content-type", ContentTypeJSON)
 	w.WriteHeader(400)
 	render.Render(w, r, ErrNotFound)
 }

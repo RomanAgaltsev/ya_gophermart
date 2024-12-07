@@ -163,6 +163,7 @@ func (r *Repository) GetListOfOrders(ctx context.Context, user *model.User) (mod
     orders := make([]*model.Order, 0, len(ordersQuery))
     for _, order := range ordersQuery {
         orders = append(orders, &model.Order{
+            Login:      order.Login,
             Number:     order.Number,
             Status:     order.Status,
             Accrual:    order.Accrual,
