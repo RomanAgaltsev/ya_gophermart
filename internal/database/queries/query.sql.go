@@ -103,12 +103,12 @@ func (q *Queries) GetUser(ctx context.Context, login string) (User, error) {
 const listOrders = `-- name: ListOrders :many
 SELECT id, login, number, status, accrual, uploaded_at
 FROM orders
-WHERE user = $1
+WHERE login = $1
 ORDER BY uploaded_at DESC
 `
 
-func (q *Queries) ListOrders(ctx context.Context, dollar_1 interface{}) ([]Order, error) {
-	rows, err := q.db.Query(ctx, listOrders, dollar_1)
+func (q *Queries) ListOrders(ctx context.Context, login string) ([]Order, error) {
+	rows, err := q.db.Query(ctx, listOrders, login)
 	if err != nil {
 		return nil, err
 	}

@@ -19,7 +19,7 @@ VALUES ($1, $2) RETURNING id;
 -- name: ListOrders :many
 SELECT *
 FROM orders
-WHERE user = $1
+WHERE login = $1
 ORDER BY uploaded_at DESC;
 
 -- name: CreateWithdraw :one

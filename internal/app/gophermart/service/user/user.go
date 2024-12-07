@@ -8,6 +8,7 @@ import (
     "github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/repository"
     "github.com/RomanAgaltsev/ya_gophermart/internal/config"
     "github.com/RomanAgaltsev/ya_gophermart/internal/model"
+    "github.com/RomanAgaltsev/ya_gophermart/internal/pkg/auth"
 )
 
 var (
@@ -41,8 +42,15 @@ type service struct {
 }
 
 func (s *service) Register(ctx context.Context, user *model.User) error {
+    // Replace password with hash
+    hash, err := auth.HashPassword(user.Password)
+    if err != nil {
+        return err
+    }
+    user.Password = hash
+
     // Create user in the repository
-    err := s.repository.CreateUser(ctx, user)
+    err = s.repository.CreateUser(ctx, user)
 
     // There is a conflict - the login is already exists in the database
     if errors.Is(err, repository.ErrConflict) {
@@ -65,7 +73,7 @@ func (s *service) Login(ctx context.Context, user *model.User) error {
     }
 
     // If user doesn`t exist or password is wrong
-    if userInRepo == nil || user.Password != userInRepo.Password {
+    if userInRepo == nil || !auth.CheckPasswordHash(user.Password, userInRepo.Password) {
         return ErrWrongLoginPassword
     }
 

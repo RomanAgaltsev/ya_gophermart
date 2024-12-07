@@ -4,7 +4,7 @@ CREATE TABLE users
 (
     id         SERIAL PRIMARY KEY,
     login      VARCHAR(20) UNIQUE NOT NULL,
-    password   VARCHAR(20)        NOT NULL,
+    password   VARCHAR(60)        NOT NULL,
     created_at TIMESTAMP          NOT NULL DEFAULT NOW()
 );
 
@@ -16,17 +16,17 @@ CREATE TABLE orders
     login       VARCHAR(20)         NOT NULL,
     number      VARCHAR(100) UNIQUE NOT NULL,
     status      order_status        NOT NULL DEFAULT 'NEW',
-    accrual     NUMERIC(15, 3),
+    accrual     DOUBLE PRECISION    NOT NULL DEFAULT 0,
     uploaded_at TIMESTAMP           NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE withdrawals
 (
     id           SERIAL PRIMARY KEY,
-    login        VARCHAR(20)    NOT NULL,
-    order_number VARCHAR(100)   NOT NULL,
-    sum          NUMERIC(15, 3) NOT NULL,
-    processed_at TIMESTAMP      NOT NULL DEFAULT NOW()
+    login        VARCHAR(20)      NOT NULL,
+    order_number VARCHAR(100)     NOT NULL,
+    sum          DOUBLE PRECISION NOT NULL,
+    processed_at TIMESTAMP        NOT NULL DEFAULT NOW()
 );
 -- +goose StatementEnd
 

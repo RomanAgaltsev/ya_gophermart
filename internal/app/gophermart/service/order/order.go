@@ -2,12 +2,21 @@ package order
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
+	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/repository"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/config"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/model"
 )
 
-var _ Service = (*service)(nil)
+var (
+	_ Service    = (*service)(nil)
+	_ Repository = (*repository.Repository)(nil)
+
+	ErrOrderUploadedByThisLogin    = fmt.Errorf("order number has already been uploaded by this user")
+	ErrOrderUploadedByAnotherLogin = fmt.Errorf("order number has already been uploaded by another user")
+)
 
 type Service interface {
 	Create(ctx context.Context, order *model.Order) error
@@ -15,7 +24,7 @@ type Service interface {
 }
 
 type Repository interface {
-	CreateOrder(ctx context.Context, order *model.Order) error
+	CreateOrder(ctx context.Context, order *model.Order) (*model.Order, error)
 	GetListOfOrders(ctx context.Context, user *model.User) (model.Orders, error)
 }
 
@@ -32,9 +41,42 @@ type service struct {
 }
 
 func (s *service) Create(ctx context.Context, order *model.Order) error {
+	existingOrder, err := s.repository.CreateOrder(ctx, order)
+	if errors.Is(err, repository.ErrConflict) {
+		if existingOrder.Login == order.Login {
+			return ErrOrderUploadedByThisLogin
+		}
+
+		return ErrOrderUploadedByAnotherLogin
+	}
+
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (s *service) UserOrders(ctx context.Context, user *model.User) (model.Orders, error) {
-	return nil, nil
+	return s.repository.GetListOfOrders(ctx, user)
+	/*
+		userOrders, err := s.repository.GetListOfOrders(ctx, user)
+		if err != nil {
+			return nil, err
+		}
+
+		orders := make(model.Orders, 0, len(userOrders))
+
+		for _, ordr := range userOrders {
+			orders = append(orders, &model.Order{
+				Login:      ordr.Login,
+				Number:     ordr.Number,
+				Status:     ordr.Status,
+				Accrual:    ordr.Accrual,
+				UploadedAt: ordr.UploadedAt,
+			})
+		}
+
+		return orders, nil
+	*/
 }
