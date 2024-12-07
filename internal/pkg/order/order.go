@@ -2,6 +2,7 @@ package order
 
 import "strconv"
 
+// IsNumberValid checks if a given order numder is valid with Luhn algorithm.
 func IsNumberValid(orderNumber string) bool {
 	var sum int
 
