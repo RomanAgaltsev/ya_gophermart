@@ -21,3 +21,12 @@ SELECT *
 FROM orders
 WHERE user = $1
 ORDER BY uploaded_at DESC;
+
+-- name: CreateWithdraw :one
+INSERT INTO withdrawals (order_number, sum)
+VALUES ($1, $2) RETURNING id;
+
+-- name: ListWithdrawals :many
+SELECT *
+FROM withdrawals
+WHERE login = $1 LIMIT 1;

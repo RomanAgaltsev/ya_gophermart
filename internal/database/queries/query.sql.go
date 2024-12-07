@@ -7,6 +7,8 @@ package queries
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createOrder = `-- name: CreateOrder :one
@@ -38,6 +40,23 @@ type CreateUserParams struct {
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (int32, error) {
 	row := q.db.QueryRow(ctx, createUser, arg.Login, arg.Password)
+	var id int32
+	err := row.Scan(&id)
+	return id, err
+}
+
+const createWithdraw = `-- name: CreateWithdraw :one
+INSERT INTO withdrawals (order_number, sum)
+VALUES ($1, $2) RETURNING id
+`
+
+type CreateWithdrawParams struct {
+	OrderNumber string
+	Sum         pgtype.Numeric
+}
+
+func (q *Queries) CreateWithdraw(ctx context.Context, arg CreateWithdrawParams) (int32, error) {
+	row := q.db.QueryRow(ctx, createWithdraw, arg.OrderNumber, arg.Sum)
 	var id int32
 	err := row.Scan(&id)
 	return id, err
@@ -104,6 +123,38 @@ func (q *Queries) ListOrders(ctx context.Context, dollar_1 interface{}) ([]Order
 			&i.Status,
 			&i.Accrual,
 			&i.UploadedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listWithdrawals = `-- name: ListWithdrawals :many
+SELECT id, login, order_number, sum, processed_at
+FROM withdrawals
+WHERE login = $1 LIMIT 1
+`
+
+func (q *Queries) ListWithdrawals(ctx context.Context, login string) ([]Withdrawal, error) {
+	rows, err := q.db.Query(ctx, listWithdrawals, login)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Withdrawal
+	for rows.Next() {
+		var i Withdrawal
+		if err := rows.Scan(
+			&i.ID,
+			&i.Login,
+			&i.OrderNumber,
+			&i.Sum,
+			&i.ProcessedAt,
 		); err != nil {
 			return nil, err
 		}
