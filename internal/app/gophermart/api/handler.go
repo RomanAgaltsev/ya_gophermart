@@ -20,6 +20,13 @@ import (
 const (
     ContentTypeJSON = "application/json"
     ContentTypeText = "text/plain; charset=utf-8"
+
+    argError = "error"
+
+    msgNewJWTToken       = "new JWT token"
+    msgUserRegistration  = "user registration"
+    msgUserLogin         = "user login"
+    msgOrderNumberUpload = "order number upload"
 )
 
 // Handler handles all HTTP requests.
@@ -53,14 +60,14 @@ func (h *Handler) UserRegistrion(w http.ResponseWriter, r *http.Request) {
     err := h.userService.Register(ctx, &usr)
     if err != nil && !errors.Is(err, user.ErrLoginIsAlreadyTaken) {
         // There is an error, but not a conflict
-        slog.Info("user registration", "error", err.Error())
+        slog.Info(msgUserRegistration, argError, err.Error())
         render.Render(w, r, ErrorRenderer(err))
         return
     }
 
     if errors.Is(err, user.ErrLoginIsAlreadyTaken) {
         // There is a conflict
-        slog.Info("user registration", "error", err.Error())
+        slog.Info(msgUserRegistration, argError, err.Error())
         render.Render(w, r, ErrLoginIsAlreadyTaken)
     }
 
@@ -69,7 +76,7 @@ func (h *Handler) UserRegistrion(w http.ResponseWriter, r *http.Request) {
     _, tokenString, _ := auth.NewJWTToken(ja, usr.Login)
     if err != nil {
         // Something has gone wrong
-        slog.Info("new JWT token", "error", err.Error())
+        slog.Info(msgNewJWTToken, argError, err.Error())
         render.Render(w, r, ServerErrorRenderer(err))
         return
     }
@@ -95,14 +102,14 @@ func (h *Handler) UserLogin(w http.ResponseWriter, r *http.Request) {
     err := h.userService.Login(ctx, &usr)
     if err != nil && !errors.Is(err, user.ErrWrongLoginPassword) {
         // There is an error, but not with login/password pair
-        slog.Info("user login", "error", err.Error())
-        render.Render(w, r, ErrorRenderer(err))
+        slog.Info(msgUserLogin, argError, err.Error())
+        render.Render(w, r, ServerErrorRenderer(err))
         return
     }
 
     if errors.Is(err, user.ErrWrongLoginPassword) {
         // There is a problem with login/password
-        slog.Info("user registration", "error", err.Error())
+        slog.Info(msgUserLogin, argError, err.Error())
         render.Render(w, r, ErrWrongLoginPassword)
     }
 
@@ -111,7 +118,7 @@ func (h *Handler) UserLogin(w http.ResponseWriter, r *http.Request) {
     _, tokenString, _ := auth.NewJWTToken(ja, usr.Login)
     if err != nil {
         // Something has gone wrong
-        slog.Info("new JWT token", "error", err.Error())
+        slog.Info(msgNewJWTToken, argError, err.Error())
         render.Render(w, r, ServerErrorRenderer(err))
         return
     }
@@ -123,10 +130,6 @@ func (h *Handler) UserLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) OrderNumberUpload(w http.ResponseWriter, r *http.Request) {
-    /*
-       500 — внутренняя ошибка сервера.
-    */
-
     // Get context from request
     ctx := r.Context()
 
@@ -135,39 +138,43 @@ func (h *Handler) OrderNumberUpload(w http.ResponseWriter, r *http.Request) {
 
     orderNumber := string(rBody)
 
-    //400 — неверный формат запроса
     if orderNumber == "" {
         render.Render(w, r, ErrBadRequest)
         return
     }
 
-    // 422 — неверный формат номера заказа
     if !orderpkg.IsNumberValid(orderNumber) {
         render.Render(w, r, ErrInvalidOrderNumber)
         return
     }
 
-    //ordr := model.Order{}
+    ordr := model.Order{
+        Login:  "",
+        Number: orderNumber,
+    }
 
-    // 409 — номер заказа уже был загружен другим пользователем
-    //    err := h.orderService.Create(ctx, &ordr)
-    //    if err != nil && !errors.Is(err, user.ErrLoginIsAlreadyTaken) {
-    //        // There is an error, but not a conflict
-    //        slog.Info("user registration", "error", err.Error())
-    //        render.Render(w, r, ErrorRenderer(err))
-    //        return
-    //    }
+    err := h.orderService.Create(ctx, &ordr)
+    if err != nil && !errors.Is(err, order.ErrOrderUploadedByThisLogin) && !errors.Is(err, order.ErrOrderUploadedByAnotherLogin) {
+        // There is an error, but not a conflict
+        slog.Info(msgOrderNumberUpload, argError, err.Error())
+        render.Render(w, r, ServerErrorRenderer(err))
+        return
+    }
 
-    //    if errors.Is(err, user.ErrLoginIsAlreadyTaken) {
-    //        // There is a conflict
-    //        slog.Info("user registration", "error", err.Error())
-    //        render.Render(w, r, ErrLoginIsAlreadyTaken)
-    //    }
+    if errors.Is(err, order.ErrOrderUploadedByThisLogin) {
+        // There is a conflict
+        slog.Info(msgOrderNumberUpload, argError, err.Error())
+        render.Render(w, r, ErrOrderUploadedByThisLogin)
+        return
+    }
 
-    // 200 — номер заказа уже был загружен этим пользователем;
-    w.WriteHeader(http.StatusOK)
+    if errors.Is(err, order.ErrOrderUploadedByAnotherLogin) {
+        // There is a conflict
+        slog.Info(msgOrderNumberUpload, argError, err.Error())
+        render.Render(w, r, ErrOrderUploadedByAnotherLogin)
 
-    // 202 — новый номер заказа принят в обработку;
+    }
+
     w.WriteHeader(http.StatusAccepted)
 }
 

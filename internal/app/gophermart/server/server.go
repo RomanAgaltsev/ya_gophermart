@@ -33,13 +33,13 @@ func New(cfg *config.Config) (*http.Server, error) {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.Compress(5, api.ContentTypeJSON, api.ContentTypeText))
 
-	/*
-		Set routes
-	*/
-
 	// Replace default handlers
 	router.MethodNotAllowed(methodNotAllowedHandler)
 	router.NotFound(notFoundHandler)
+
+	/*
+		Set routes
+	*/
 
 	// Public routes
 	router.Group(func(r chi.Router) {

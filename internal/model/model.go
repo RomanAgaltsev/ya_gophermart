@@ -27,6 +27,7 @@ func (u *User) Render(w http.ResponseWriter, r *http.Request) error {
 }
 
 type Order struct {
+	Login      string              `db:"login" json:"-"`
 	Number     string              `db:"number" json:"number"`
 	Status     queries.OrderStatus `db:"status" json:"status"`
 	Accrual    float64             `db:"accrual" json:"accrual"`
