@@ -7,8 +7,6 @@ package queries
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createOrder = `-- name: CreateOrder :one
@@ -46,17 +44,18 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (int32, 
 }
 
 const createWithdraw = `-- name: CreateWithdraw :one
-INSERT INTO withdrawals (order_number, sum)
-VALUES ($1, $2) RETURNING id
+INSERT INTO withdrawals (login, order_number, sum)
+VALUES ($1, $2, $3) RETURNING id
 `
 
 type CreateWithdrawParams struct {
+	Login       string
 	OrderNumber string
-	Sum         pgtype.Numeric
+	Sum         float64
 }
 
 func (q *Queries) CreateWithdraw(ctx context.Context, arg CreateWithdrawParams) (int32, error) {
-	row := q.db.QueryRow(ctx, createWithdraw, arg.OrderNumber, arg.Sum)
+	row := q.db.QueryRow(ctx, createWithdraw, arg.Login, arg.OrderNumber, arg.Sum)
 	var id int32
 	err := row.Scan(&id)
 	return id, err

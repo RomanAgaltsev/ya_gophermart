@@ -53,6 +53,7 @@ type Balance struct {
 }
 
 type Withdrawal struct {
+	Login       string    `db:"login" json:"-"`
 	OrderNumber string    `db:"order" json:"order"`
 	Sum         float64   `db:"sum" json:"sum"`
 	ProcessedAt time.Time `db:"processed_at" json:"processed_at,omitempty"`
