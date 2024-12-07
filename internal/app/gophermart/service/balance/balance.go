@@ -41,7 +41,7 @@ type service struct {
 }
 
 func (s *service) UserBalance(ctx context.Context, user *model.User) (*model.Balance, error) {
-	return nil, nil
+	return s.repository.GetBalance(ctx, user)
 }
 
 func (s *service) BalanceWithdraw(ctx context.Context, user *model.User, orderNumber string, sum float64) error {

@@ -25,7 +25,8 @@ const (
     msgUserLogin         = "user login"
     msgOrderNumberUpload = "order number upload"
     msgOrderList         = "get orders list"
-    msgWithdraw          = "withdraw"
+    msgUserBalance       = "user balance request"
+    msgWithdraw          = "withdraw request"
     msgUserWithdrawals   = "user withdrawals request"
 )
 
@@ -47,14 +48,14 @@ func NewHandler(cfg *config.Config) *Handler {
 
 // UserRegistrion handles user registration request.
 func (h *Handler) UserRegistrion(w http.ResponseWriter, r *http.Request) {
-    // Get context from request
-    ctx := r.Context()
-
     var usr model.User
     if err := render.Bind(r, &usr); err != nil {
         render.Render(w, r, ErrorRenderer(err))
         return
     }
+
+    // Get context from request
+    ctx := r.Context()
 
     // Register user
     err := h.userService.Register(ctx, &usr)
@@ -90,14 +91,14 @@ func (h *Handler) UserRegistrion(w http.ResponseWriter, r *http.Request) {
 
 // UserLogin handles user login request.
 func (h *Handler) UserLogin(w http.ResponseWriter, r *http.Request) {
-    // Get context from request
-    ctx := r.Context()
-
     var usr model.User
     if err := render.Bind(r, &usr); err != nil {
         render.Render(w, r, ErrorRenderer(err))
         return
     }
+
+    // Get context from request
+    ctx := r.Context()
 
     // Login user
     err := h.userService.Login(ctx, &usr)
@@ -132,9 +133,6 @@ func (h *Handler) UserLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) OrderNumberUpload(w http.ResponseWriter, r *http.Request) {
-    // Get context from request
-    ctx := r.Context()
-
     rBody, _ := io.ReadAll(r.Body)
     defer func() { _ = r.Body.Close() }()
 
@@ -149,6 +147,9 @@ func (h *Handler) OrderNumberUpload(w http.ResponseWriter, r *http.Request) {
         render.Render(w, r, ErrInvalidOrderNumber)
         return
     }
+
+    // Get context from request
+    ctx := r.Context()
 
     ordr := model.Order{
         Login:  "",
@@ -207,13 +208,27 @@ func (h *Handler) OrderListRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UserBalanceRequest(w http.ResponseWriter, r *http.Request) {
-
-}
-
-func (h *Handler) WithdrawRequest(w http.ResponseWriter, r *http.Request) {
     // Get context from request
     ctx := r.Context()
 
+    usr := &model.User{}
+
+    userBalance, err := h.balanceService.UserBalance(ctx, usr)
+    if err != nil {
+        slog.Info(msgUserBalance, argError, err.Error())
+        render.Render(w, r, ServerErrorRenderer(err))
+        return
+    }
+
+    w.WriteHeader(http.StatusOK)
+
+    if err := render.Render(w, r, userBalance); err != nil {
+        render.Render(w, r, ErrorRenderer(err))
+        return
+    }
+}
+
+func (h *Handler) WithdrawRequest(w http.ResponseWriter, r *http.Request) {
     var withdrawal model.Withdrawal
 
     if err := render.Bind(r, &withdrawal); err != nil {
@@ -224,6 +239,9 @@ func (h *Handler) WithdrawRequest(w http.ResponseWriter, r *http.Request) {
         render.Render(w, r, ErrInvalidOrderNumber)
         return
     }
+
+    // Get context from request
+    ctx := r.Context()
 
     usr := &model.User{}
 

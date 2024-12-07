@@ -52,6 +52,10 @@ type Balance struct {
 	Withdrawn float64 `json:"withdrawn"`
 }
 
+func (*Balance) Render(w http.ResponseWriter, r *http.Request) error {
+	return nil
+}
+
 type Withdrawal struct {
 	Login       string    `db:"login" json:"-"`
 	OrderNumber string    `db:"order" json:"order"`
