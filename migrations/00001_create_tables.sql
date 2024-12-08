@@ -28,6 +28,14 @@ CREATE TABLE withdrawals
     sum          DOUBLE PRECISION NOT NULL,
     processed_at TIMESTAMP        NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE balance
+(
+    id        SERIAL PRIMARY KEY,
+    login     VARCHAR(20)      NOT NULL,
+    accrued   DOUBLE PRECISION NOT NULL DEFAULT 0,
+    withdrawn DOUBLE PRECISION NOT NULL DEFAULT 0
+);
 -- +goose StatementEnd
 
 -- +goose Down
