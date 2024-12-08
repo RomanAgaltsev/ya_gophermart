@@ -54,6 +54,13 @@ func (ns NullOrderStatus) Value() (driver.Value, error) {
 	return string(ns.OrderStatus), nil
 }
 
+type Balance struct {
+	ID        int32
+	Login     string
+	Accrued   float64
+	Withdrawn float64
+}
+
 type Order struct {
 	ID         int32
 	Login      string

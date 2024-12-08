@@ -9,6 +9,18 @@ import (
 	"context"
 )
 
+const createBalance = `-- name: CreateBalance :one
+INSERT INTO balance (login)
+VALUES ($1) RETURNING id
+`
+
+func (q *Queries) CreateBalance(ctx context.Context, login string) (int32, error) {
+	row := q.db.QueryRow(ctx, createBalance, login)
+	var id int32
+	err := row.Scan(&id)
+	return id, err
+}
+
 const createOrder = `-- name: CreateOrder :one
 INSERT INTO orders (login, number)
 VALUES ($1, $2) RETURNING id
@@ -59,6 +71,24 @@ func (q *Queries) CreateWithdraw(ctx context.Context, arg CreateWithdrawParams) 
 	var id int32
 	err := row.Scan(&id)
 	return id, err
+}
+
+const getBalance = `-- name: GetBalance :one
+SELECT id, login, accrued, withdrawn
+FROM balance
+WHERE login = $1 LIMIT 1
+`
+
+func (q *Queries) GetBalance(ctx context.Context, login string) (Balance, error) {
+	row := q.db.QueryRow(ctx, getBalance, login)
+	var i Balance
+	err := row.Scan(
+		&i.ID,
+		&i.Login,
+		&i.Accrued,
+		&i.Withdrawn,
+	)
+	return i, err
 }
 
 const getOrder = `-- name: GetOrder :one
@@ -164,4 +194,54 @@ func (q *Queries) ListWithdrawals(ctx context.Context, login string) ([]Withdraw
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateBalanceAccrued = `-- name: UpdateBalanceAccrued :exec
+UPDATE balance
+SET accrued = accrued + $2
+WHERE login = $1 RETURNING accrued, withdrawn
+`
+
+type UpdateBalanceAccruedParams struct {
+	Login   string
+	Accrued float64
+}
+
+func (q *Queries) UpdateBalanceAccrued(ctx context.Context, arg UpdateBalanceAccruedParams) error {
+	_, err := q.db.Exec(ctx, updateBalanceAccrued, arg.Login, arg.Accrued)
+	return err
+}
+
+const updateBalanceWithdrawn = `-- name: UpdateBalanceWithdrawn :exec
+UPDATE balance
+SET withdrawn = withdrawn + $2
+WHERE login = $1 RETURNING accrued, withdrawn
+`
+
+type UpdateBalanceWithdrawnParams struct {
+	Login     string
+	Withdrawn float64
+}
+
+func (q *Queries) UpdateBalanceWithdrawn(ctx context.Context, arg UpdateBalanceWithdrawnParams) error {
+	_, err := q.db.Exec(ctx, updateBalanceWithdrawn, arg.Login, arg.Withdrawn)
+	return err
+}
+
+const updateOrder = `-- name: UpdateOrder :exec
+UPDATE orders
+SET status  = $2,
+    accrual = $3
+WHERE number = $1
+`
+
+type UpdateOrderParams struct {
+	Number  string
+	Status  OrderStatus
+	Accrual float64
+}
+
+func (q *Queries) UpdateOrder(ctx context.Context, arg UpdateOrderParams) error {
+	_, err := q.db.Exec(ctx, updateOrder, arg.Number, arg.Status, arg.Accrual)
+	return err
 }
