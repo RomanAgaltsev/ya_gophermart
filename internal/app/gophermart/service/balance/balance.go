@@ -3,11 +3,14 @@ package balance
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/repository"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/config"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/model"
 )
+
+const ordersProcessingInterval = 20
 
 var (
 	_ Service    = (*service)(nil)
@@ -31,10 +34,14 @@ type Repository interface {
 }
 
 func NewService(repository Repository, cfg *config.Config) (Service, error) {
-	return &service{
+	balanceService := &service{
 		repository: repository,
 		cfg:        cfg,
-	}, nil
+	}
+
+	go balanceService.ordersProcessing()
+
+	return balanceService, nil
 }
 
 type service struct {
@@ -56,4 +63,21 @@ func (s *service) Withdraw(ctx context.Context, user *model.User, orderNumber st
 
 func (s *service) Withdrawals(ctx context.Context, user *model.User) (model.Withdrawals, error) {
 	return s.repository.GetListOfWithdrawals(ctx, user)
+}
+
+func (s *service) ordersProcessing() {
+	ticker := time.NewTicker(ordersProcessingInterval * time.Second)
+
+	for {
+		select {
+		case <-ticker.C:
+			go processOrders()
+		default:
+			continue
+		}
+	}
+}
+
+func processOrders() {
+
 }
