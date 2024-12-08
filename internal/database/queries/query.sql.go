@@ -56,7 +56,8 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (int32, 
 }
 
 const createWithdraw = `-- name: CreateWithdraw :one
-INSERT INTO withdrawals (login, order_number, sum)
+INSERT
+INTO withdrawals (login, order_number, sum)
 VALUES ($1, $2, $3) RETURNING id
 `
 
@@ -156,6 +157,33 @@ func (q *Queries) ListOrders(ctx context.Context, login string) ([]Order, error)
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOrdersToProcess = `-- name: ListOrdersToProcess :many
+SELECT number
+FROM orders
+WHERE status = 'NEW'
+   OR status = 'PROCESSING'
+`
+
+func (q *Queries) ListOrdersToProcess(ctx context.Context) ([]string, error) {
+	rows, err := q.db.Query(ctx, listOrdersToProcess)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var number string
+		if err := rows.Scan(&number); err != nil {
+			return nil, err
+		}
+		items = append(items, number)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
