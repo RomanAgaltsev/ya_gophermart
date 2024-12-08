@@ -41,6 +41,20 @@ func (m *MockRepository) EXPECT() *MockRepositoryMockRecorder {
 	return m.recorder
 }
 
+// CreateBalance mocks base method.
+func (m *MockRepository) CreateBalance(ctx context.Context, user *model.User) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateBalance", ctx, user)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CreateBalance indicates an expected call of CreateBalance.
+func (mr *MockRepositoryMockRecorder) CreateBalance(ctx, user any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateBalance", reflect.TypeOf((*MockRepository)(nil).CreateBalance), ctx, user)
+}
+
 // GetBalance mocks base method.
 func (m *MockRepository) GetBalance(ctx context.Context, user *model.User) (*model.Balance, error) {
 	m.ctrl.T.Helper()
@@ -71,16 +85,16 @@ func (mr *MockRepositoryMockRecorder) GetListOfWithdrawals(ctx, user any) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetListOfWithdrawals", reflect.TypeOf((*MockRepository)(nil).GetListOfWithdrawals), ctx, user)
 }
 
-// Withdraw mocks base method.
-func (m *MockRepository) Withdraw(ctx context.Context, user *model.User, orderNumber string, sum float64) error {
+// WithdrawFromBalance mocks base method.
+func (m *MockRepository) WithdrawFromBalance(ctx context.Context, user *model.User, orderNumber string, sum float64) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Withdraw", ctx, user, orderNumber, sum)
+	ret := m.ctrl.Call(m, "WithdrawFromBalance", ctx, user, orderNumber, sum)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// Withdraw indicates an expected call of Withdraw.
-func (mr *MockRepositoryMockRecorder) Withdraw(ctx, user, orderNumber, sum any) *gomock.Call {
+// WithdrawFromBalance indicates an expected call of WithdrawFromBalance.
+func (mr *MockRepositoryMockRecorder) WithdrawFromBalance(ctx, user, orderNumber, sum any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Withdraw", reflect.TypeOf((*MockRepository)(nil).Withdraw), ctx, user, orderNumber, sum)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithdrawFromBalance", reflect.TypeOf((*MockRepository)(nil).WithdrawFromBalance), ctx, user, orderNumber, sum)
 }
