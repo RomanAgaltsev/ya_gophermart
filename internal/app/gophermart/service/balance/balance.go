@@ -17,14 +17,16 @@ var (
 )
 
 type Service interface {
-	UserBalance(ctx context.Context, user *model.User) (*model.Balance, error)
-	BalanceWithdraw(ctx context.Context, user *model.User, orderNumber string, sum float64) error
-	UserWithdrawals(ctx context.Context, user *model.User) (model.Withdrawals, error)
+	Create(ctx context.Context, user *model.User) error
+	Get(ctx context.Context, user *model.User) (*model.Balance, error)
+	Withdraw(ctx context.Context, user *model.User, orderNumber string, sum float64) error
+	Withdrawals(ctx context.Context, user *model.User) (model.Withdrawals, error)
 }
 
 type Repository interface {
+	CreateBalance(ctx context.Context, user *model.User) error
 	GetBalance(ctx context.Context, user *model.User) (*model.Balance, error)
-	Withdraw(ctx context.Context, user *model.User, orderNumber string, sum float64) error
+	WithdrawFromBalance(ctx context.Context, user *model.User, orderNumber string, sum float64) error
 	GetListOfWithdrawals(ctx context.Context, user *model.User) (model.Withdrawals, error)
 }
 
@@ -40,14 +42,18 @@ type service struct {
 	cfg        *config.Config
 }
 
-func (s *service) UserBalance(ctx context.Context, user *model.User) (*model.Balance, error) {
+func (s *service) Create(ctx context.Context, user *model.User) error {
+	return s.repository.CreateBalance(ctx, user)
+}
+
+func (s *service) Get(ctx context.Context, user *model.User) (*model.Balance, error) {
 	return s.repository.GetBalance(ctx, user)
 }
 
-func (s *service) BalanceWithdraw(ctx context.Context, user *model.User, orderNumber string, sum float64) error {
-	return s.repository.Withdraw(ctx, user, orderNumber, sum)
+func (s *service) Withdraw(ctx context.Context, user *model.User, orderNumber string, sum float64) error {
+	return s.repository.WithdrawFromBalance(ctx, user, orderNumber, sum)
 }
 
-func (s *service) UserWithdrawals(ctx context.Context, user *model.User) (model.Withdrawals, error) {
+func (s *service) Withdrawals(ctx context.Context, user *model.User) (model.Withdrawals, error) {
 	return s.repository.GetListOfWithdrawals(ctx, user)
 }

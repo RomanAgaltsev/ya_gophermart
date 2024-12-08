@@ -174,11 +174,34 @@ func (r *Repository) GetListOfOrders(ctx context.Context, user *model.User) (mod
     return orders, nil
 }
 
-func (r *Repository) GetBalance(ctx context.Context, user *model.User) (*model.Balance, error) {
-    return nil, nil
+func (r *Repository) CreateBalance(ctx context.Context, user *model.User) error {
+    _, err := backoff.RetryWithData(func() (int32, error) {
+        return r.q.CreateBalance(ctx, user.Login)
+    }, backoff.NewExponentialBackOff())
+
+    if err != nil {
+        return err
+    }
+
+    return nil
 }
 
-func (r *Repository) Withdraw(ctx context.Context, user *model.User, orderNumber string, sum float64) error {
+func (r *Repository) GetBalance(ctx context.Context, user *model.User) (*model.Balance, error) {
+    balanceQuery, err := backoff.RetryWithData(func() (queries.Balance, error) {
+        return r.q.GetBalance(ctx, user.Login)
+    }, backoff.NewExponentialBackOff())
+
+    if err != nil {
+        return nil, err
+    }
+
+    return &model.Balance{
+        Current:   balanceQuery.Accrued - balanceQuery.Accrued,
+        Withdrawn: balanceQuery.Accrued,
+    }, nil
+}
+
+func (r *Repository) WithdrawFromBalance(ctx context.Context, user *model.User, orderNumber string, sum float64) error {
     return nil
 }
 
