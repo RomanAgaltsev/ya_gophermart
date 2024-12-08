@@ -25,6 +25,7 @@ const (
     msgUserLogin         = "user login"
     msgOrderNumberUpload = "order number upload"
     msgOrderList         = "get orders list"
+    msgNewUserBalance    = "new user balance"
     msgUserBalance       = "user balance request"
     msgWithdraw          = "withdraw request"
     msgUserWithdrawals   = "user withdrawals request"
@@ -73,9 +74,17 @@ func (h *Handler) UserRegistrion(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    // Create a balance for the user
+    err = h.balanceService.Create(ctx, &usr)
+    if err != nil {
+        slog.Info(msgNewUserBalance, argError, err.Error())
+        _ = render.Render(w, r, ServerErrorRenderer(err))
+        return
+    }
+
     // Generate JWT token
     ja := auth.NewAuth(h.cfg.SecretKey)
-    _, tokenString, _ := auth.NewJWTToken(ja, usr.Login)
+    _, tokenString, err := auth.NewJWTToken(ja, usr.Login)
     if err != nil {
         // Something has gone wrong
         slog.Info(msgNewJWTToken, argError, err.Error())
@@ -213,7 +222,7 @@ func (h *Handler) UserBalanceRequest(w http.ResponseWriter, r *http.Request) {
 
     usr := &model.User{}
 
-    userBalance, err := h.balanceService.UserBalance(ctx, usr)
+    userBalance, err := h.balanceService.Get(ctx, usr)
     if err != nil {
         slog.Info(msgUserBalance, argError, err.Error())
         _ = render.Render(w, r, ServerErrorRenderer(err))
@@ -245,7 +254,7 @@ func (h *Handler) WithdrawRequest(w http.ResponseWriter, r *http.Request) {
 
     usr := &model.User{}
 
-    err := h.balanceService.BalanceWithdraw(ctx, usr, withdrawal.OrderNumber, withdrawal.Sum)
+    err := h.balanceService.Withdraw(ctx, usr, withdrawal.OrderNumber, withdrawal.Sum)
     if err != nil && !errors.Is(err, balance.ErrNotEnoughBalance) {
         // There is an error, but not with balance
         slog.Info(msgWithdraw, argError, err.Error())
@@ -269,7 +278,7 @@ func (h *Handler) WithdrawalsInformationRequest(w http.ResponseWriter, r *http.R
 
     usr := &model.User{}
 
-    withdrawals, err := h.balanceService.UserWithdrawals(ctx, usr)
+    withdrawals, err := h.balanceService.Withdrawals(ctx, usr)
     if err != nil {
         // There is an error, but not with withdrawals
         slog.Info(msgUserWithdrawals, argError, err.Error())
