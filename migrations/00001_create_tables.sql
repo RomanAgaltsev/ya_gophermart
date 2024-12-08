@@ -40,6 +40,7 @@ CREATE TABLE balance
 
 -- +goose Down
 -- +goose StatementBegin
+DROP TABLE IF EXISTS balance;
 DROP TABLE IF EXISTS withdrawals;
 DROP TABLE IF EXISTS orders;
 DROP TYPE IF EXISTS order_status;
