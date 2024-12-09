@@ -165,25 +165,32 @@ func (q *Queries) ListOrders(ctx context.Context, login string) ([]Order, error)
 }
 
 const listOrdersToProcess = `-- name: ListOrdersToProcess :many
-SELECT number
+SELECT id, login, number, status, accrual, uploaded_at
 FROM orders
 WHERE status = 'NEW'
    OR status = 'PROCESSING'
 `
 
-func (q *Queries) ListOrdersToProcess(ctx context.Context) ([]string, error) {
+func (q *Queries) ListOrdersToProcess(ctx context.Context) ([]Order, error) {
 	rows, err := q.db.Query(ctx, listOrdersToProcess)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []string
+	var items []Order
 	for rows.Next() {
-		var number string
-		if err := rows.Scan(&number); err != nil {
+		var i Order
+		if err := rows.Scan(
+			&i.ID,
+			&i.Login,
+			&i.Number,
+			&i.Status,
+			&i.Accrual,
+			&i.UploadedAt,
+		); err != nil {
 			return nil, err
 		}
-		items = append(items, number)
+		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

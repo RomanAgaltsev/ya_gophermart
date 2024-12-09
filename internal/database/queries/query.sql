@@ -29,7 +29,7 @@ WHERE login = $1
 ORDER BY uploaded_at DESC;
 
 -- name: ListOrdersToProcess :many
-SELECT number
+SELECT *
 FROM orders
 WHERE status = 'NEW'
    OR status = 'PROCESSING';
