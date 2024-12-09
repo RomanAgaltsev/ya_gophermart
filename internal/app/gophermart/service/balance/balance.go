@@ -31,6 +31,7 @@ type Repository interface {
 	GetBalance(ctx context.Context, user *model.User) (*model.Balance, error)
 	WithdrawFromBalance(ctx context.Context, user *model.User, orderNumber string, sum float64) error
 	GetListOfWithdrawals(ctx context.Context, user *model.User) (model.Withdrawals, error)
+	GetListOfOrdersToProcess(ctx context.Context) ([]string, error)
 }
 
 func NewService(repository Repository, cfg *config.Config) (Service, error) {
@@ -71,13 +72,16 @@ func (s *service) ordersProcessing() {
 	for {
 		select {
 		case <-ticker.C:
-			go processOrders()
+			s.processOrders()
 		default:
 			continue
 		}
 	}
 }
 
-func processOrders() {
+func (s *service) processOrders() {
+	const workersNumber = 3
+
+	//ordersToProcess := s.repository.
 
 }

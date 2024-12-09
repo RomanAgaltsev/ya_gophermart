@@ -174,6 +174,18 @@ func (r *Repository) GetListOfOrders(ctx context.Context, user *model.User) (mod
     return orders, nil
 }
 
+func (r *Repository) GetListOfOrdersToProcess(ctx context.Context) ([]string, error) {
+    _, err := backoff.RetryWithData(func() (int32, error) {
+        return r.q.(ctx, user.Login)
+    }, backoff.NewExponentialBackOff())
+
+    if err != nil {
+        return err
+    }
+
+    return nil
+}
+
 func (r *Repository) CreateBalance(ctx context.Context, user *model.User) error {
     _, err := backoff.RetryWithData(func() (int32, error) {
         return r.q.CreateBalance(ctx, user.Login)
