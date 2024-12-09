@@ -174,18 +174,6 @@ func (r *Repository) GetListOfOrders(ctx context.Context, user *model.User) (mod
     return orders, nil
 }
 
-func (r *Repository) GetListOfOrdersToProcess(ctx context.Context) ([]string, error) {
-    _, err := backoff.RetryWithData(func() (int32, error) {
-        return r.q.(ctx, user.Login)
-    }, backoff.NewExponentialBackOff())
-
-    if err != nil {
-        return err
-    }
-
-    return nil
-}
-
 func (r *Repository) CreateBalance(ctx context.Context, user *model.User) error {
     _, err := backoff.RetryWithData(func() (int32, error) {
         return r.q.CreateBalance(ctx, user.Login)
@@ -236,4 +224,34 @@ func (r *Repository) GetListOfWithdrawals(ctx context.Context, user *model.User)
     }
 
     return withdrawals, nil
+}
+
+func (r *Repository) GetListOfOrdersToProcess(ctx context.Context) ([]string, error) {
+    ordersToProcess, err := backoff.RetryWithData(func() ([]string, error) {
+        return r.q.ListOrdersToProcess(ctx)
+    }, backoff.NewExponentialBackOff())
+
+    if err != nil {
+        return nil, err
+    }
+
+    return ordersToProcess, nil
+}
+
+func (r *Repository) UpdateBalanceAccrued(ctx context.Context, accrual *model.OrderAccrual) error {
+
+    //    OrderStatusPROCESSING
+    //    OrderStatus = "PROCESSING"
+    //
+    //    if accrual.Status == queries.OrderStatusNEW || accrual.Status == queries.Order
+    //
+    //        tx, err := r.db.Begin(ctx)
+    //    if err != nil {
+    //        return err
+    //    }
+    //    defer func() { _ = tx.Rollback(ctx) }()
+    //
+    //    qtx := r.q.WithTx(tx)
+    //
+    return nil
 }

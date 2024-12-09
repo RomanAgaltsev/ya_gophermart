@@ -3,11 +3,16 @@ package balance
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/repository"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/config"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/model"
+
+	"github.com/cenkalti/backoff/v4"
+	"github.com/go-chi/render"
 )
 
 const ordersProcessingInterval = 20
@@ -32,6 +37,7 @@ type Repository interface {
 	WithdrawFromBalance(ctx context.Context, user *model.User, orderNumber string, sum float64) error
 	GetListOfWithdrawals(ctx context.Context, user *model.User) (model.Withdrawals, error)
 	GetListOfOrdersToProcess(ctx context.Context) ([]string, error)
+	UpdateBalanceAccrued(ctx context.Context, accrual *model.OrderAccrual) error
 }
 
 func NewService(repository Repository, cfg *config.Config) (Service, error) {
@@ -73,8 +79,8 @@ func (s *service) ordersProcessing() {
 		select {
 		case <-ticker.C:
 			s.processOrders()
-		default:
-			continue
+			//		default:
+			//			continue
 		}
 	}
 }
@@ -82,6 +88,57 @@ func (s *service) ordersProcessing() {
 func (s *service) processOrders() {
 	const workersNumber = 3
 
-	//ordersToProcess := s.repository.
+	ctx := context.Background()
 
+	ordersToProcess, err := s.repository.GetListOfOrdersToProcess(ctx)
+	if err != nil {
+		slog.Info("orders processing", "error", err.Error())
+		return
+	}
+
+	jobs := make(chan string, len(ordersToProcess))
+	done := make(chan struct{}, len(ordersToProcess))
+
+	for range workersNumber {
+		go func(jobs chan string, done chan struct{}) {
+			client := http.Client{}
+			for ordNum := range jobs {
+				resp, errAccrual := backoff.RetryWithData(func() (*http.Response, error) {
+					return client.Get(fmt.Sprintf("%s/api/orders/%s", s.cfg.AccrualSystemAddress, ordNum))
+				}, backoff.NewExponentialBackOff())
+				if errAccrual != nil {
+					slog.Info("orders processing", "error", errAccrual.Error())
+					done <- struct{}{}
+					continue
+				}
+
+				var accrual model.OrderAccrual
+
+				errRender := render.DecodeJSON(resp.Body, &accrual)
+				if errRender != nil {
+					slog.Info("orders processing", "error", errRender.Error())
+					done <- struct{}{}
+					continue
+				}
+
+				errUpdate := s.repository.UpdateBalanceAccrued(ctx, &accrual)
+				if errUpdate != nil {
+					slog.Info("orders processing", "error", errUpdate.Error())
+					done <- struct{}{}
+					continue
+				}
+
+				done <- struct{}{}
+			}
+		}(jobs, done)
+	}
+
+	for _, orderNumber := range ordersToProcess {
+		jobs <- orderNumber
+	}
+	close(jobs)
+
+	for range len(ordersToProcess) {
+		<-done
+	}
 }
