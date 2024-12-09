@@ -194,9 +194,13 @@ func (h *Handler) OrderListRequest(w http.ResponseWriter, r *http.Request) {
     // Get context from request
     ctx := r.Context()
 
-    usr := model.User{}
+    usr, err := auth.UserFromRequest(r, h.cfg.SecretKey)
+    if err != nil {
+        _ = render.Render(w, r, ErrorRenderer(err))
+        return
+    }
 
-    orders, err := h.orderService.UserOrders(ctx, &usr)
+    orders, err := h.orderService.UserOrders(ctx, usr)
     if err != nil {
         slog.Info(msgOrderList, argError, err.Error())
         _ = render.Render(w, r, ServerErrorRenderer(err))
@@ -220,7 +224,11 @@ func (h *Handler) UserBalanceRequest(w http.ResponseWriter, r *http.Request) {
     // Get context from request
     ctx := r.Context()
 
-    usr := &model.User{}
+    usr, err := auth.UserFromRequest(r, h.cfg.SecretKey)
+    if err != nil {
+        _ = render.Render(w, r, ErrorRenderer(err))
+        return
+    }
 
     userBalance, err := h.balanceService.Get(ctx, usr)
     if err != nil {
@@ -252,9 +260,13 @@ func (h *Handler) WithdrawRequest(w http.ResponseWriter, r *http.Request) {
     // Get context from request
     ctx := r.Context()
 
-    usr := &model.User{}
+    usr, err := auth.UserFromRequest(r, h.cfg.SecretKey)
+    if err != nil {
+        _ = render.Render(w, r, ErrorRenderer(err))
+        return
+    }
 
-    err := h.balanceService.Withdraw(ctx, usr, withdrawal.OrderNumber, withdrawal.Sum)
+    err = h.balanceService.Withdraw(ctx, usr, withdrawal.OrderNumber, withdrawal.Sum)
     if err != nil && !errors.Is(err, balance.ErrNotEnoughBalance) {
         // There is an error, but not with balance
         slog.Info(msgWithdraw, argError, err.Error())
@@ -276,7 +288,11 @@ func (h *Handler) WithdrawalsInformationRequest(w http.ResponseWriter, r *http.R
     // Get context from request
     ctx := r.Context()
 
-    usr := &model.User{}
+    usr, err := auth.UserFromRequest(r, h.cfg.SecretKey)
+    if err != nil {
+        _ = render.Render(w, r, ErrorRenderer(err))
+        return
+    }
 
     withdrawals, err := h.balanceService.Withdrawals(ctx, usr)
     if err != nil {

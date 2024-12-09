@@ -1,7 +1,10 @@
 package auth
 
 import (
+    "fmt"
     "net/http"
+
+    "github.com/RomanAgaltsev/ya_gophermart/internal/model"
 
     "github.com/go-chi/jwtauth/v5"
     "github.com/lestrrat-go/jwx/v2/jwt"
@@ -26,6 +29,8 @@ const (
     // UserLoginClaimName contains key name of user login in a context.
     UserLoginClaimName UserLogin = "login"
 )
+
+var ErrInvalidUser = fmt.Errorf("absent or invalid user in request")
 
 // NewAuth returns new JWTAuth.
 func NewAuth(secretKey string) *jwtauth.JWTAuth {
@@ -58,4 +63,34 @@ func HashPassword(password string) (string, error) {
 func CheckPasswordHash(password, hash string) bool {
     err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
     return err == nil
+}
+
+func UserFromRequest(r *http.Request, secretKey string) (*model.User, error) {
+    ja := NewAuth(secretKey)
+
+    tokenString := jwtauth.TokenFromCookie(r)
+    if tokenString == "" {
+        return nil, ErrInvalidUser
+    }
+
+    token, err := ja.Decode(tokenString)
+    if err != nil {
+        return nil, err
+    }
+
+    claims := token.PrivateClaims()
+
+    loginInterface, ok := claims[string(UserLoginClaimName)]
+    if !ok {
+        return nil, ErrInvalidUser
+    }
+
+    login, ok := loginInterface.(string)
+    if !ok {
+        return nil, ErrInvalidUser
+    }
+
+    return &model.User{
+        Login: login,
+    }, nil
 }
