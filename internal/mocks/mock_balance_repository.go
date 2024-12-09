@@ -70,6 +70,21 @@ func (mr *MockRepositoryMockRecorder) GetBalance(ctx, user any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBalance", reflect.TypeOf((*MockRepository)(nil).GetBalance), ctx, user)
 }
 
+// GetListOfOrdersToProcess mocks base method.
+func (m *MockRepository) GetListOfOrdersToProcess(ctx context.Context) (model.Orders, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetListOfOrdersToProcess", ctx)
+	ret0, _ := ret[0].(model.Orders)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetListOfOrdersToProcess indicates an expected call of GetListOfOrdersToProcess.
+func (mr *MockRepositoryMockRecorder) GetListOfOrdersToProcess(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetListOfOrdersToProcess", reflect.TypeOf((*MockRepository)(nil).GetListOfOrdersToProcess), ctx)
+}
+
 // GetListOfWithdrawals mocks base method.
 func (m *MockRepository) GetListOfWithdrawals(ctx context.Context, user *model.User) (model.Withdrawals, error) {
 	m.ctrl.T.Helper()
@@ -83,6 +98,20 @@ func (m *MockRepository) GetListOfWithdrawals(ctx context.Context, user *model.U
 func (mr *MockRepositoryMockRecorder) GetListOfWithdrawals(ctx, user any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetListOfWithdrawals", reflect.TypeOf((*MockRepository)(nil).GetListOfWithdrawals), ctx, user)
+}
+
+// UpdateBalanceAccrued mocks base method.
+func (m *MockRepository) UpdateBalanceAccrued(ctx context.Context, order *model.Order, accrual *model.OrderAccrual) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateBalanceAccrued", ctx, order, accrual)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateBalanceAccrued indicates an expected call of UpdateBalanceAccrued.
+func (mr *MockRepositoryMockRecorder) UpdateBalanceAccrued(ctx, order, accrual any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateBalanceAccrued", reflect.TypeOf((*MockRepository)(nil).UpdateBalanceAccrued), ctx, order, accrual)
 }
 
 // WithdrawFromBalance mocks base method.
