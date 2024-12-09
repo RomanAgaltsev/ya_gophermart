@@ -19,7 +19,8 @@ import (
 )
 
 var (
-    ErrConflict = fmt.Errorf("data conflict")
+    ErrConflict        = fmt.Errorf("data conflict")
+    ErrNegativeBalance = fmt.Errorf("negative balance")
 )
 
 type conflictOrder struct {
@@ -202,7 +203,45 @@ func (r *Repository) GetBalance(ctx context.Context, user *model.User) (*model.B
 }
 
 func (r *Repository) WithdrawFromBalance(ctx context.Context, user *model.User, orderNumber string, sum float64) error {
-    return nil
+    tx, err := r.db.Begin(ctx)
+    if err != nil {
+        return err
+    }
+    defer func() { _ = tx.Rollback(ctx) }()
+
+    qtx := r.q.WithTx(tx)
+
+    withdrawnRow, err := backoff.RetryWithData(func() (queries.UpdateBalanceWithdrawnRow, error) {
+        return qtx.UpdateBalanceWithdrawn(ctx, queries.UpdateBalanceWithdrawnParams{
+            Login:     user.Login,
+            Withdrawn: sum,
+        })
+    }, backoff.NewExponentialBackOff())
+    if err != nil {
+        // TODO
+        _ = tx.Rollback(ctx)
+        return err
+    }
+
+    if withdrawnRow.Accrued-withdrawnRow.Withdrawn < 0 {
+        _ = tx.Rollback(ctx)
+        return ErrNegativeBalance
+    }
+
+    _, err = backoff.RetryWithData(func() (int32, error) {
+        return qtx.CreateWithdraw(ctx, queries.CreateWithdrawParams{
+            Login:       user.Login,
+            OrderNumber: orderNumber,
+            Sum:         sum,
+        })
+    }, backoff.NewExponentialBackOff())
+    if err != nil {
+        // TODO
+        _ = tx.Rollback(ctx)
+        return err
+    }
+
+    return tx.Commit(ctx)
 }
 
 func (r *Repository) GetListOfWithdrawals(ctx context.Context, user *model.User) (model.Withdrawals, error) {
@@ -257,7 +296,7 @@ func (r *Repository) UpdateBalanceAccrued(ctx context.Context, order *model.Orde
 
     qtx := r.q.WithTx(tx)
 
-    err = backoff.Retry(func() error {
+    _, err = backoff.RetryWithData(func() (queries.UpdateBalanceAccruedRow, error) {
         return qtx.UpdateBalanceAccrued(ctx, queries.UpdateBalanceAccruedParams{
             Login:   order.Login,
             Accrued: accrual.Accrual,

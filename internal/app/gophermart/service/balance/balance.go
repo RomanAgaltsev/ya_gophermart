@@ -2,6 +2,7 @@ package balance
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -63,7 +64,16 @@ func (s *service) Get(ctx context.Context, user *model.User) (*model.Balance, er
 }
 
 func (s *service) Withdraw(ctx context.Context, user *model.User, orderNumber string, sum float64) error {
-	return s.repository.WithdrawFromBalance(ctx, user, orderNumber, sum)
+	err := s.repository.WithdrawFromBalance(ctx, user, orderNumber, sum)
+	if errors.Is(err, repository.ErrNegativeBalance) {
+		return ErrNotEnoughBalance
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *service) Withdrawals(ctx context.Context, user *model.User) (model.Withdrawals, error) {
@@ -79,6 +89,7 @@ func (s *service) ordersProcessing() {
 		select {
 		case <-ticker.C:
 			s.processOrders()
+			// TODO
 			//		default:
 			//			continue
 		}
