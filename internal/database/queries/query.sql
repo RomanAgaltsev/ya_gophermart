@@ -28,8 +28,15 @@ FROM orders
 WHERE login = $1
 ORDER BY uploaded_at DESC;
 
+-- name: ListOrdersToProcess :many
+SELECT number
+FROM orders
+WHERE status = 'NEW'
+   OR status = 'PROCESSING';
+
 -- name: CreateWithdraw :one
-INSERT INTO withdrawals (login, order_number, sum)
+INSERT
+INTO withdrawals (login, order_number, sum)
 VALUES ($1, $2, $3) RETURNING id;
 
 -- name: ListWithdrawals :many
