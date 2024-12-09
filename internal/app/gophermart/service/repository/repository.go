@@ -226,32 +226,61 @@ func (r *Repository) GetListOfWithdrawals(ctx context.Context, user *model.User)
     return withdrawals, nil
 }
 
-func (r *Repository) GetListOfOrdersToProcess(ctx context.Context) ([]string, error) {
-    ordersToProcess, err := backoff.RetryWithData(func() ([]string, error) {
+func (r *Repository) GetListOfOrdersToProcess(ctx context.Context) (model.Orders, error) {
+    ordersQuery, err := backoff.RetryWithData(func() ([]queries.Order, error) {
         return r.q.ListOrdersToProcess(ctx)
     }, backoff.NewExponentialBackOff())
-
     if err != nil {
         return nil, err
+    }
+
+    ordersToProcess := make([]*model.Order, 0, len(ordersQuery))
+    for _, order := range ordersQuery {
+        ordersToProcess = append(ordersToProcess, &model.Order{
+            Login:      order.Login,
+            Number:     order.Number,
+            Status:     order.Status,
+            Accrual:    order.Accrual,
+            UploadedAt: order.UploadedAt,
+        })
     }
 
     return ordersToProcess, nil
 }
 
-func (r *Repository) UpdateBalanceAccrued(ctx context.Context, accrual *model.OrderAccrual) error {
+func (r *Repository) UpdateBalanceAccrued(ctx context.Context, order *model.Order, accrual *model.OrderAccrual) error {
+    tx, err := r.db.Begin(ctx)
+    if err != nil {
+        return err
+    }
+    defer func() { _ = tx.Rollback(ctx) }()
 
-    //    OrderStatusPROCESSING
-    //    OrderStatus = "PROCESSING"
-    //
-    //    if accrual.Status == queries.OrderStatusNEW || accrual.Status == queries.Order
-    //
-    //        tx, err := r.db.Begin(ctx)
-    //    if err != nil {
-    //        return err
-    //    }
-    //    defer func() { _ = tx.Rollback(ctx) }()
-    //
-    //    qtx := r.q.WithTx(tx)
-    //
-    return nil
+    qtx := r.q.WithTx(tx)
+
+    err = backoff.Retry(func() error {
+        return qtx.UpdateBalanceAccrued(ctx, queries.UpdateBalanceAccruedParams{
+            Login:   order.Login,
+            Accrued: accrual.Accrual,
+        })
+    }, backoff.NewExponentialBackOff())
+    if err != nil {
+        // TODO
+        _ = tx.Rollback(ctx)
+        return err
+    }
+
+    err = backoff.Retry(func() error {
+        return qtx.UpdateOrder(ctx, queries.UpdateOrderParams{
+            Number:  order.Number,
+            Status:  accrual.Status,
+            Accrual: accrual.Accrual,
+        })
+    }, backoff.NewExponentialBackOff())
+    if err != nil {
+        // TODO
+        _ = tx.Rollback(ctx)
+        return err
+    }
+
+    return tx.Commit(ctx)
 }

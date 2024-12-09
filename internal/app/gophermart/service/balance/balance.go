@@ -15,8 +15,6 @@ import (
 	"github.com/go-chi/render"
 )
 
-const ordersProcessingInterval = 20
-
 var (
 	_ Service    = (*service)(nil)
 	_ Repository = (*repository.Repository)(nil)
@@ -36,8 +34,8 @@ type Repository interface {
 	GetBalance(ctx context.Context, user *model.User) (*model.Balance, error)
 	WithdrawFromBalance(ctx context.Context, user *model.User, orderNumber string, sum float64) error
 	GetListOfWithdrawals(ctx context.Context, user *model.User) (model.Withdrawals, error)
-	GetListOfOrdersToProcess(ctx context.Context) ([]string, error)
-	UpdateBalanceAccrued(ctx context.Context, accrual *model.OrderAccrual) error
+	GetListOfOrdersToProcess(ctx context.Context) (model.Orders, error)
+	UpdateBalanceAccrued(ctx context.Context, order *model.Order, accrual *model.OrderAccrual) error
 }
 
 func NewService(repository Repository, cfg *config.Config) (Service, error) {
@@ -73,6 +71,8 @@ func (s *service) Withdrawals(ctx context.Context, user *model.User) (model.With
 }
 
 func (s *service) ordersProcessing() {
+	const ordersProcessingInterval = 20
+
 	ticker := time.NewTicker(ordersProcessingInterval * time.Second)
 
 	for {
@@ -96,15 +96,15 @@ func (s *service) processOrders() {
 		return
 	}
 
-	jobs := make(chan string, len(ordersToProcess))
+	jobs := make(chan *model.Order, len(ordersToProcess))
 	done := make(chan struct{}, len(ordersToProcess))
 
 	for range workersNumber {
-		go func(jobs chan string, done chan struct{}) {
+		go func(jobs chan *model.Order, done chan struct{}) {
 			client := http.Client{}
-			for ordNum := range jobs {
+			for order := range jobs {
 				resp, errAccrual := backoff.RetryWithData(func() (*http.Response, error) {
-					return client.Get(fmt.Sprintf("%s/api/orders/%s", s.cfg.AccrualSystemAddress, ordNum))
+					return client.Get(fmt.Sprintf("%s/api/orders/%s", s.cfg.AccrualSystemAddress, order.Number))
 				}, backoff.NewExponentialBackOff())
 				if errAccrual != nil {
 					slog.Info("orders processing", "error", errAccrual.Error())
@@ -121,7 +121,12 @@ func (s *service) processOrders() {
 					continue
 				}
 
-				errUpdate := s.repository.UpdateBalanceAccrued(ctx, &accrual)
+				if order.Status == accrual.Status {
+					done <- struct{}{}
+					continue
+				}
+
+				errUpdate := s.repository.UpdateBalanceAccrued(ctx, order, &accrual)
 				if errUpdate != nil {
 					slog.Info("orders processing", "error", errUpdate.Error())
 					done <- struct{}{}
