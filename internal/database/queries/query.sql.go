@@ -56,8 +56,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (int32, 
 }
 
 const createWithdraw = `-- name: CreateWithdraw :one
-INSERT
-INTO withdrawals (login, order_number, sum)
+INSERT INTO withdrawals (login, order_number, sum)
 VALUES ($1, $2, $3) RETURNING id
 `
 
@@ -231,9 +230,9 @@ func (q *Queries) ListWithdrawals(ctx context.Context, login string) ([]Withdraw
 	return items, nil
 }
 
-const updateBalanceAccrued = `-- name: UpdateBalanceAccrued :exec
+const updateBalanceAccrued = `-- name: UpdateBalanceAccrued :one
 UPDATE balance
-SET accrued = accrued + $2
+SET accrued = $2
 WHERE login = $1 RETURNING accrued, withdrawn
 `
 
@@ -242,12 +241,19 @@ type UpdateBalanceAccruedParams struct {
 	Accrued float64
 }
 
-func (q *Queries) UpdateBalanceAccrued(ctx context.Context, arg UpdateBalanceAccruedParams) error {
-	_, err := q.db.Exec(ctx, updateBalanceAccrued, arg.Login, arg.Accrued)
-	return err
+type UpdateBalanceAccruedRow struct {
+	Accrued   float64
+	Withdrawn float64
 }
 
-const updateBalanceWithdrawn = `-- name: UpdateBalanceWithdrawn :exec
+func (q *Queries) UpdateBalanceAccrued(ctx context.Context, arg UpdateBalanceAccruedParams) (UpdateBalanceAccruedRow, error) {
+	row := q.db.QueryRow(ctx, updateBalanceAccrued, arg.Login, arg.Accrued)
+	var i UpdateBalanceAccruedRow
+	err := row.Scan(&i.Accrued, &i.Withdrawn)
+	return i, err
+}
+
+const updateBalanceWithdrawn = `-- name: UpdateBalanceWithdrawn :one
 UPDATE balance
 SET withdrawn = withdrawn + $2
 WHERE login = $1 RETURNING accrued, withdrawn
@@ -258,9 +264,16 @@ type UpdateBalanceWithdrawnParams struct {
 	Withdrawn float64
 }
 
-func (q *Queries) UpdateBalanceWithdrawn(ctx context.Context, arg UpdateBalanceWithdrawnParams) error {
-	_, err := q.db.Exec(ctx, updateBalanceWithdrawn, arg.Login, arg.Withdrawn)
-	return err
+type UpdateBalanceWithdrawnRow struct {
+	Accrued   float64
+	Withdrawn float64
+}
+
+func (q *Queries) UpdateBalanceWithdrawn(ctx context.Context, arg UpdateBalanceWithdrawnParams) (UpdateBalanceWithdrawnRow, error) {
+	row := q.db.QueryRow(ctx, updateBalanceWithdrawn, arg.Login, arg.Withdrawn)
+	var i UpdateBalanceWithdrawnRow
+	err := row.Scan(&i.Accrued, &i.Withdrawn)
+	return i, err
 }
 
 const updateOrder = `-- name: UpdateOrder :exec

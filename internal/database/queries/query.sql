@@ -35,8 +35,7 @@ WHERE status = 'NEW'
    OR status = 'PROCESSING';
 
 -- name: CreateWithdraw :one
-INSERT
-INTO withdrawals (login, order_number, sum)
+INSERT INTO withdrawals (login, order_number, sum)
 VALUES ($1, $2, $3) RETURNING id;
 
 -- name: ListWithdrawals :many
@@ -54,12 +53,12 @@ SELECT *
 FROM balance
 WHERE login = $1 LIMIT 1;
 
--- name: UpdateBalanceAccrued :exec
+-- name: UpdateBalanceAccrued :one
 UPDATE balance
-SET accrued = accrued + $2
+SET accrued = $2
 WHERE login = $1 RETURNING accrued, withdrawn;
 
--- name: UpdateBalanceWithdrawn :exec
+-- name: UpdateBalanceWithdrawn :one
 UPDATE balance
 SET withdrawn = withdrawn + $2
 WHERE login = $1 RETURNING accrued, withdrawn;
