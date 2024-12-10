@@ -2,6 +2,9 @@ package server
 
 import (
 	"fmt"
+	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/balance"
+	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/order"
+	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/user"
 	"net/http"
 
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/api"
@@ -22,14 +25,14 @@ const (
 var ErrRunAddressIsEmpty = fmt.Errorf("configuration: HTTP server run address is empty")
 
 // New creates new http server with middleware and routes
-func New(cfg *config.Config) (*http.Server, error) {
+func New(cfg *config.Config, userService user.Service, orderService order.Service, balanceService balance.Service) (*http.Server, error) {
 	if cfg.RunAddress == "" {
 		return nil, ErrRunAddressIsEmpty
 	}
 
 	// Create handler
-	handle := api.NewHandler(cfg)
-
+	handle := api.NewHandler(cfg, userService, orderService, balanceService)
+	
 	// Create router
 	router := chi.NewRouter()
 

@@ -114,7 +114,7 @@ func (a *App) initServices() error {
 
 // initServer initializes HTTP server.
 func (a *App) initServer() error {
-	srvr, err := server.New(a.cfg)
+	srvr, err := server.New(a.cfg, a.userService, a.orderService, a.balanceService)
 	if err != nil {
 		return err
 	}

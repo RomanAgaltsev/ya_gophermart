@@ -41,9 +41,12 @@ type Handler struct {
 }
 
 // NewHandler is a Handler constructor.
-func NewHandler(cfg *config.Config) *Handler {
+func NewHandler(cfg *config.Config, userService user.Service, orderService order.Service, balanceService balance.Service) *Handler {
     return &Handler{
-        cfg: cfg,
+        cfg:            cfg,
+        userService:    userService,
+        orderService:   orderService,
+        balanceService: balanceService,
     }
 }
 
