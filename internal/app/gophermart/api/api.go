@@ -18,6 +18,8 @@ import (
 )
 
 const (
+    contentTypeJSON = "application/json"
+
     argError = "error"
 
     msgNewJWTToken       = "new JWT token"
@@ -98,8 +100,7 @@ func (h *Handler) UserRegistrion(w http.ResponseWriter, r *http.Request) {
     // Set a cookie with generated JWT token
     http.SetCookie(w, auth.NewCookieWithDefaults(tokenString))
 
-    //w.WriteHeader(http.StatusOK)
-    render.Status(r, http.StatusOK)
+    w.WriteHeader(http.StatusOK)
 }
 
 // UserLogin handles user login request.
@@ -142,8 +143,7 @@ func (h *Handler) UserLogin(w http.ResponseWriter, r *http.Request) {
     // Set a cookie with generated JWT token
     http.SetCookie(w, auth.NewCookieWithDefaults(tokenString))
 
-    //w.WriteHeader(http.StatusOK)
-    render.Status(r, http.StatusOK)
+    w.WriteHeader(http.StatusOK)
 }
 
 func (h *Handler) OrderNumberUpload(w http.ResponseWriter, r *http.Request) {
@@ -198,8 +198,7 @@ func (h *Handler) OrderNumberUpload(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    //w.WriteHeader(http.StatusAccepted)
-    render.Status(r, http.StatusAccepted)
+    w.WriteHeader(http.StatusAccepted)
 }
 
 func (h *Handler) OrderListRequest(w http.ResponseWriter, r *http.Request) {
@@ -224,17 +223,13 @@ func (h *Handler) OrderListRequest(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // TODO
-    //    w.Header().Set("Content-type", "application/json")
-    //    w.WriteHeader(http.StatusOK)
+    w.Header().Set("Content-type", contentTypeJSON)
+    w.WriteHeader(http.StatusOK)
 
-    render.Status(r, http.StatusOK)
-    render.JSON(w, r, orders)
-
-    //    if err := render.JSON(w, r, orders); err != nil {
-    //        _ = render.Render(w, r, ErrorRenderer(err))
-    //        return
-    //    }
+    if err := render.Render(w, r, orders); err != nil {
+        _ = render.Render(w, r, ErrorRenderer(err))
+        return
+    }
 }
 
 func (h *Handler) UserBalanceRequest(w http.ResponseWriter, r *http.Request) {
@@ -254,19 +249,13 @@ func (h *Handler) UserBalanceRequest(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // TODO
+    w.Header().Set("Content-type", contentTypeJSON)
+    w.WriteHeader(http.StatusOK)
 
-    render.Status(r, http.StatusOK)
-    render.JSON(w, r, userBalance)
-
-    //    w.Header().Set("Content-type", "application/json")
-    //
-    //    w.WriteHeader(http.StatusOK)
-    //
-    //    if err := render.Render(w, r, userBalance); err != nil {
-    //        _ = render.Render(w, r, ErrorRenderer(err))
-    //        return
-    //    }
+    if err := render.Render(w, r, userBalance); err != nil {
+        _ = render.Render(w, r, ErrorRenderer(err))
+        return
+    }
 }
 
 func (h *Handler) WithdrawRequest(w http.ResponseWriter, r *http.Request) {
@@ -306,8 +295,7 @@ func (h *Handler) WithdrawRequest(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    //w.WriteHeader(http.StatusOK)
-    render.Status(r, http.StatusOK)
+    w.WriteHeader(http.StatusOK)
 }
 
 func (h *Handler) WithdrawalsInformationRequest(w http.ResponseWriter, r *http.Request) {
@@ -333,16 +321,11 @@ func (h *Handler) WithdrawalsInformationRequest(w http.ResponseWriter, r *http.R
         return
     }
 
-    // TODO
-    //    w.Header().Set("Content-type", "application/json")
-    //
-    //    w.WriteHeader(http.StatusOK)
+    w.Header().Set("Content-type", contentTypeJSON)
+    w.WriteHeader(http.StatusOK)
 
-    render.Status(r, http.StatusOK)
-    render.JSON(w, r, withdrawals)
-
-    //    if err := render.Render(w, r, withdrawals); err != nil {
-    //        _ = render.Render(w, r, ErrorRenderer(err))
-    //        return
-    //    }
+    if err := render.Render(w, r, withdrawals); err != nil {
+        _ = render.Render(w, r, ErrorRenderer(err))
+        return
+    }
 }
