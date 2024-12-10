@@ -118,6 +118,7 @@ func (s *service) processOrders() {
 					slog.Info("orders processing", "accrual system request", url)
 					return client.Get(url)
 				}, backoff.NewExponentialBackOff())
+				defer func() { _ = resp.Body.Close() }()
 				if errAccrual != nil {
 					slog.Info("orders processing", "error", errAccrual.Error())
 					done <- struct{}{}
