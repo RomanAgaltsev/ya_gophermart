@@ -163,12 +163,18 @@ func (h *Handler) OrderNumberUpload(w http.ResponseWriter, r *http.Request) {
     // Get context from request
     ctx := r.Context()
 
+    usr, err := auth.UserFromRequest(r, h.cfg.SecretKey)
+    if err != nil {
+        _ = render.Render(w, r, ErrorRenderer(err))
+        return
+    }
+
     ordr := model.Order{
-        Login:  "",
+        Login:  usr.Login,
         Number: orderNumber,
     }
 
-    err := h.orderService.Create(ctx, &ordr)
+    err = h.orderService.Create(ctx, &ordr)
     if err != nil && !errors.Is(err, order.ErrOrderUploadedByThisLogin) && !errors.Is(err, order.ErrOrderUploadedByAnotherLogin) {
         // There is an error, but not a conflict
         slog.Info(msgOrderNumberUpload, argError, err.Error())
@@ -253,6 +259,7 @@ func (h *Handler) WithdrawRequest(w http.ResponseWriter, r *http.Request) {
 
     if err := render.Bind(r, &withdrawal); err != nil {
         _ = render.Render(w, r, ErrBadRequest)
+        return
     }
 
     if !orderpkg.IsNumberValid(withdrawal.OrderNumber) {
