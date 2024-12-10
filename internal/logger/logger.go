@@ -2,7 +2,9 @@ package logger
 
 import (
 	"log/slog"
+	"time"
 
+	"github.com/go-chi/httplog/v2"
 	"go.uber.org/zap"
 	"go.uber.org/zap/exp/zapslog"
 	"go.uber.org/zap/zapcore"
@@ -41,4 +43,14 @@ func Initialize() error {
 	slog.SetDefault(slog.New(zapslog.NewHandler(logger.Core())))
 
 	return nil
+}
+
+func NewRequestLogger() *httplog.Logger {
+	return httplog.NewLogger("httplog-example", httplog.Options{
+		JSON:             true,
+		LogLevel:         slog.LevelInfo,
+		Concise:          true,
+		RequestHeaders:   true,
+		MessageFieldName: "message",
+	})
 }

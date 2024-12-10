@@ -5,6 +5,8 @@ import (
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/balance"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/order"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/user"
+	"github.com/RomanAgaltsev/ya_gophermart/internal/logger"
+	"github.com/go-chi/httplog/v2"
 	"net/http"
 
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/api"
@@ -32,12 +34,13 @@ func New(cfg *config.Config, userService user.Service, orderService order.Servic
 
 	// Create handler
 	handle := api.NewHandler(cfg, userService, orderService, balanceService)
-	
+
 	// Create router
 	router := chi.NewRouter()
 
 	// Enable common middleware
-	router.Use(middleware.Logger)
+	//router.Use(middleware.Logger)
+	router.Use(httplog.RequestLogger(logger.NewRequestLogger()))
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.Compress(5, ContentTypeJSON, ContentTypeText))
 	router.Use(render.SetContentType(render.ContentTypeJSON))
