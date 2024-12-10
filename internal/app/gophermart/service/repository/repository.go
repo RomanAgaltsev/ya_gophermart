@@ -144,6 +144,7 @@ func (r *Repository) CreateOrder(ctx context.Context, order *model.Order) (*mode
 
     if errors.Is(confOrder.err, ErrConflict) {
         return &model.Order{
+            Login:      confOrder.order.Login,
             Number:     confOrder.order.Number,
             Status:     confOrder.order.Status,
             Accrual:    confOrder.order.Accrual,
