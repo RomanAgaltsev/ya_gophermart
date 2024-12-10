@@ -2,9 +2,7 @@ package server
 
 import (
 	"fmt"
-
-	//"github.com/RomanAgaltsev/ya_gophermart/internal/logger"
-	//"github.com/go-chi/httplog/v2"
+	"github.com/RomanAgaltsev/ya_gophermart/internal/logger"
 	"log/slog"
 	"net/http"
 
@@ -42,9 +40,7 @@ func New(cfg *config.Config, userService user.Service, orderService order.Servic
 	router := chi.NewRouter()
 
 	// Enable common middleware
-	//router.Use(middleware.Logger)
-	//router.Use(httplog.RequestLogger(logger.NewRequestLogger()))
-	router.Use(slogchi.New(slog.Default()))
+	router.Use(logger.NewRequestLogger())
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.Compress(5, ContentTypeJSON, ContentTypeText))
 	router.Use(render.SetContentType(render.ContentTypeJSON))

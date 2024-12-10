@@ -2,8 +2,9 @@ package logger
 
 import (
 	"log/slog"
-	
-	"github.com/go-chi/httplog/v2"
+	"net/http"
+
+	"github.com/samber/slog-chi"
 	"go.uber.org/zap"
 	"go.uber.org/zap/exp/zapslog"
 	"go.uber.org/zap/zapcore"
@@ -44,12 +45,21 @@ func Initialize() error {
 	return nil
 }
 
-func NewRequestLogger() *httplog.Logger {
-	return httplog.NewLogger("httplog-example", httplog.Options{
-		JSON:             true,
-		LogLevel:         slog.LevelInfo,
-		Concise:          true,
-		RequestHeaders:   true,
-		MessageFieldName: "message",
+func NewRequestLogger() func(handler http.Handler) http.Handler {
+	return slogchi.NewWithConfig(slog.Default(), slogchi.Config{
+		DefaultLevel:     slog.LevelInfo,
+		ClientErrorLevel: slog.LevelWarn,
+		ServerErrorLevel: slog.LevelError,
+
+		WithUserAgent:      false,
+		WithRequestID:      true,
+		WithRequestBody:    false,
+		WithRequestHeader:  true,
+		WithResponseBody:   false,
+		WithResponseHeader: true,
+		WithSpanID:         false,
+		WithTraceID:        false,
+
+		Filters: []slogchi.Filter{},
 	})
 }
