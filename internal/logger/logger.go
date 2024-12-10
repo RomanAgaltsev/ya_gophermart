@@ -2,8 +2,7 @@ package logger
 
 import (
 	"log/slog"
-	"time"
-
+	
 	"github.com/go-chi/httplog/v2"
 	"go.uber.org/zap"
 	"go.uber.org/zap/exp/zapslog"
