@@ -2,14 +2,16 @@ package server
 
 import (
 	"fmt"
-	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/balance"
-	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/order"
-	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/user"
-	"github.com/RomanAgaltsev/ya_gophermart/internal/logger"
-	"github.com/go-chi/httplog/v2"
+
+	//"github.com/RomanAgaltsev/ya_gophermart/internal/logger"
+	//"github.com/go-chi/httplog/v2"
+	"log/slog"
 	"net/http"
 
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/api"
+	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/balance"
+	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/order"
+	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/user"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/config"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/pkg/auth"
 
@@ -17,6 +19,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/jwtauth/v5"
 	"github.com/go-chi/render"
+	"github.com/samber/slog-chi"
 )
 
 const (
@@ -40,7 +43,8 @@ func New(cfg *config.Config, userService user.Service, orderService order.Servic
 
 	// Enable common middleware
 	//router.Use(middleware.Logger)
-	router.Use(httplog.RequestLogger(logger.NewRequestLogger()))
+	//router.Use(httplog.RequestLogger(logger.NewRequestLogger()))
+	router.Use(slogchi.New(slog.Default()))
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.Compress(5, ContentTypeJSON, ContentTypeText))
 	router.Use(render.SetContentType(render.ContentTypeJSON))
@@ -80,10 +84,10 @@ func New(cfg *config.Config, userService user.Service, orderService order.Servic
 func methodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-type", ContentTypeJSON)
 	w.WriteHeader(405)
-	render.Render(w, r, ErrMethodNotAllowed)
+	_ = render.Render(w, r, ErrMethodNotAllowed)
 }
 func notFoundHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-type", ContentTypeJSON)
 	w.WriteHeader(400)
-	render.Render(w, r, ErrNotFound)
+	_ = render.Render(w, r, ErrNotFound)
 }
