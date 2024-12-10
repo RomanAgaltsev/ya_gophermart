@@ -81,7 +81,7 @@ func (s *service) Withdrawals(ctx context.Context, user *model.User) (model.With
 }
 
 func (s *service) ordersProcessing() {
-	const ordersProcessingInterval = 20
+	const ordersProcessingInterval = 10
 
 	ticker := time.NewTicker(ordersProcessingInterval * time.Second)
 
