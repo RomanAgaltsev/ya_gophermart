@@ -197,8 +197,8 @@ func (r *Repository) GetBalance(ctx context.Context, user *model.User) (*model.B
     }
 
     return &model.Balance{
-        Current:   balanceQuery.Accrued - balanceQuery.Accrued,
-        Withdrawn: balanceQuery.Accrued,
+        Current:   balanceQuery.Accrued - balanceQuery.Withdrawn,
+        Withdrawn: balanceQuery.Withdrawn,
     }, nil
 }
 
