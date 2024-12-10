@@ -52,11 +52,11 @@ func NewRequestLogger() func(handler http.Handler) http.Handler {
 		ServerErrorLevel: slog.LevelError,
 
 		WithUserAgent:      false,
-		WithRequestID:      true,
+		WithRequestID:      false,
 		WithRequestBody:    false,
-		WithRequestHeader:  true,
+		WithRequestHeader:  false,
 		WithResponseBody:   false,
-		WithResponseHeader: true,
+		WithResponseHeader: false,
 		WithSpanID:         false,
 		WithTraceID:        false,
 
