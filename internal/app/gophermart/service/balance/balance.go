@@ -89,9 +89,8 @@ func (s *service) ordersProcessing() {
 		select {
 		case <-ticker.C:
 			s.processOrders()
-			// TODO
-			//		default:
-			//			continue
+		default:
+			continue
 		}
 	}
 }
