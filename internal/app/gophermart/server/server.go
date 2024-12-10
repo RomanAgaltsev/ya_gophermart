@@ -2,8 +2,6 @@ package server
 
 import (
 	"fmt"
-	"github.com/RomanAgaltsev/ya_gophermart/internal/logger"
-	"log/slog"
 	"net/http"
 
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/api"
@@ -11,13 +9,13 @@ import (
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/order"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/user"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/config"
+	"github.com/RomanAgaltsev/ya_gophermart/internal/logger"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/pkg/auth"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/jwtauth/v5"
 	"github.com/go-chi/render"
-	"github.com/samber/slog-chi"
 )
 
 const (
