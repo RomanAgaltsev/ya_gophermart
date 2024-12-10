@@ -115,7 +115,7 @@ func (s *service) processOrders() {
 			for order := range jobs {
 				resp, errAccrual := backoff.RetryWithData(func() (*http.Response, error) {
 					url := fmt.Sprintf("%s/api/orders/%s", s.cfg.AccrualSystemAddress, order.Number)
-					slog.Info("accrual system request", "address", url, "order", order.Number)
+					slog.Info("orders processing", "accrual system request", url)
 					return client.Get(url)
 				}, backoff.NewExponentialBackOff())
 				if errAccrual != nil {
