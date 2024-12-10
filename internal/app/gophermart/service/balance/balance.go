@@ -111,25 +111,10 @@ func (s *service) processOrders() {
 
 	for range workersNumber {
 		go func(jobs chan *model.Order, done chan struct{}) {
-			client := http.Client{}
 			for order := range jobs {
-				resp, errAccrual := backoff.RetryWithData(func() (*http.Response, error) {
-					url := fmt.Sprintf("%s/api/orders/%s", s.cfg.AccrualSystemAddress, order.Number)
-					slog.Info("accrual system request", "address", url, "order", order.Number)
-					return client.Get(url)
-				}, backoff.NewExponentialBackOff())
-				defer func() { _ = resp.Body.Close() }()
-				if errAccrual != nil {
-					slog.Info("orders processing", "error", errAccrual.Error())
-					done <- struct{}{}
-					continue
-				}
-
-				var accrual model.OrderAccrual
-
-				errRender := render.DecodeJSON(resp.Body, &accrual)
-				if errRender != nil {
-					slog.Info("orders processing", "error", errRender.Error())
+				accrual, err := orderAccrual(s.cfg.AccrualSystemAddress, order.Number)
+				if err != nil {
+					slog.Info("orders processing", "error", err.Error())
 					done <- struct{}{}
 					continue
 				}
@@ -139,7 +124,7 @@ func (s *service) processOrders() {
 					continue
 				}
 
-				errUpdate := s.repository.UpdateBalanceAccrued(ctx, order, &accrual)
+				errUpdate := s.repository.UpdateBalanceAccrued(ctx, order, accrual)
 				if errUpdate != nil {
 					slog.Info("orders processing", "error", errUpdate.Error())
 					done <- struct{}{}
@@ -159,4 +144,28 @@ func (s *service) processOrders() {
 	for range len(ordersToProcess) {
 		<-done
 	}
+}
+
+func orderAccrual(accrualSystemAddress string, orderNumber string) (*model.OrderAccrual, error) {
+	client := http.Client{}
+
+	resp, err := backoff.RetryWithData(func() (*http.Response, error) {
+		url := fmt.Sprintf("%s/api/orders/%s", accrualSystemAddress, orderNumber)
+		slog.Info("accrual system request", "address", url, "order", orderNumber)
+		return client.Get(url)
+	}, backoff.NewExponentialBackOff())
+	defer func() { _ = resp.Body.Close() }()
+
+	if err != nil {
+		return nil, err
+	}
+
+	var accrual model.OrderAccrual
+
+	err = render.DecodeJSON(resp.Body, &accrual)
+	if err != nil {
+		return nil, err
+	}
+
+	return &accrual, nil
 }
