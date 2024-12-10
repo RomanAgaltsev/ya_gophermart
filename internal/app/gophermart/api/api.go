@@ -221,6 +221,9 @@ func (h *Handler) OrderListRequest(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    // TODO
+    w.Header().Set("Content-type", "application/json")
+
     w.WriteHeader(http.StatusOK)
 
     if err := render.Render(w, r, orders); err != nil {
@@ -245,6 +248,9 @@ func (h *Handler) UserBalanceRequest(w http.ResponseWriter, r *http.Request) {
         _ = render.Render(w, r, ServerErrorRenderer(err))
         return
     }
+
+    // TODO
+    w.Header().Set("Content-type", "application/json")
 
     w.WriteHeader(http.StatusOK)
 
@@ -316,6 +322,9 @@ func (h *Handler) WithdrawalsInformationRequest(w http.ResponseWriter, r *http.R
         _ = render.Render(w, r, ErrNoWithdrawals)
         return
     }
+
+    // TODO
+    w.Header().Set("Content-type", "application/json")
 
     w.WriteHeader(http.StatusOK)
 
