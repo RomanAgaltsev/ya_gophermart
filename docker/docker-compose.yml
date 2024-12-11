@@ -44,7 +44,7 @@ services:
         logging:
             driver: "gelf"
             options:
-                gelf-address: "udp:localhost:12201"
+                gelf-address: "udp://localhost:12201"
                 tag: postgres
         environment:
             POSTGRES_USER: ${POSTGRES_USER:?Please specify the POSTGRES_USER variable in the .env file}
