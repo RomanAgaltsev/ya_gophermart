@@ -43,9 +43,15 @@ func (cb *configBuilder) setDefaults() error {
 
 // setFlags sets application configuration parameters from command line parameters.
 func (cb *configBuilder) setFlags() error {
-	flag.StringVar(&cb.runAddress, "a", cb.runAddress, "HTTP server address and port")
-	flag.StringVar(&cb.databaseURI, "d", cb.databaseURI, "database connection string")
-	flag.StringVar(&cb.accrualSystemAddress, "r", cb.accrualSystemAddress, "accrual system address and port")
+	if flag.Lookup("a") == nil {
+		flag.StringVar(&cb.runAddress, "a", cb.runAddress, "HTTP server address and port")
+	}
+	if flag.Lookup("d") == nil {
+		flag.StringVar(&cb.databaseURI, "d", cb.databaseURI, "database connection string")
+	}
+	if flag.Lookup("r") == nil {
+		flag.StringVar(&cb.accrualSystemAddress, "r", cb.accrualSystemAddress, "accrual system address and port")
+	}
 	flag.Parse()
 
 	return nil

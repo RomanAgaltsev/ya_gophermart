@@ -18,6 +18,8 @@ import (
 )
 
 const (
+    contentTypeJSON = "application/json"
+
     argError = "error"
 
     msgNewJWTToken       = "new JWT token"
@@ -221,6 +223,7 @@ func (h *Handler) OrderListRequest(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    w.Header().Set("Content-type", contentTypeJSON)
     w.WriteHeader(http.StatusOK)
 
     if err := render.Render(w, r, orders); err != nil {
@@ -246,6 +249,7 @@ func (h *Handler) UserBalanceRequest(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    w.Header().Set("Content-type", contentTypeJSON)
     w.WriteHeader(http.StatusOK)
 
     if err := render.Render(w, r, userBalance); err != nil {
@@ -317,6 +321,7 @@ func (h *Handler) WithdrawalsInformationRequest(w http.ResponseWriter, r *http.R
         return
     }
 
+    w.Header().Set("Content-type", contentTypeJSON)
     w.WriteHeader(http.StatusOK)
 
     if err := render.Render(w, r, withdrawals); err != nil {
