@@ -1,9 +1,21 @@
 package order
 
-import "strconv"
+import (
+	"strconv"
+	"strings"
+)
 
 // IsNumberValid checks if a given order numder is valid with Luhn algorithm.
 func IsNumberValid(orderNumber string) bool {
+	if orderNumber == "" {
+		return false
+	}
+
+	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ/*-+!@#$%^&*()-_=+{}[]<>?|"
+	if strings.ContainsAny(orderNumber, letters) {
+		return false
+	}
+
 	var sum int
 
 	parity := len(orderNumber) % 2
