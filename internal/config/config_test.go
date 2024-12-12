@@ -2,151 +2,70 @@ package config_test
 
 import (
 	"flag"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"os"
 
 	"github.com/RomanAgaltsev/ya_gophermart/internal/config"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Config", func() {
+/*
+struct{
+	envName string
+	envVal string
+	flgName string
+	flgVal string
+	default string
+}
+*/
+
+var _ = Describe("Config", Ordered, func() {
 	var cfg *config.Config
 	var err error
 
 	defaultArgs := os.Args
 	defaultCommandLine := flag.CommandLine
 
-	JustBeforeEach(func() {
-		cfg, err = config.Get()
+	BeforeAll(func() {
+
 	})
 
-	Describe("Testing run address", func() {
-		When("env is set and flag is set", func() {
-			BeforeEach(func() {
-				t := GinkgoT()
-				t.Setenv("RUN_ADDRESS", "localhost:8081")
+	AfterEach(func() {
+		os.Clearenv()
+		os.Args = defaultArgs
+		flag.CommandLine = defaultCommandLine
+	})
 
+	DescribeTable("Run address",
+		func(envName, envVal, flgName, flgVal, def, expected string) {
+			if envName != "" {
+				t := GinkgoT()
+				t.Setenv(envName, envVal)
+			}
+
+			if flgName != "" {
 				flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-				os.Args = append([]string{"cmd"}, "-a", "localhost:8091")
-			})
-			AfterEach(func() {
-				t := GinkgoT()
-				t.Setenv("RUN_ADDRESS", "")
-				os.Args = defaultArgs
-				flag.CommandLine = defaultCommandLine
-			})
+				os.Args = append([]string{"cmd"}, flgName, flgVal)
+			}
 
-			It("is env used for config", func() {
-				Expect(err).Should(BeNil())
-				Expect(cfg.RunAddress).To(Equal("localhost:8081"))
-			})
-		})
-		When("env is set and flag is unset", func() {
-			BeforeEach(func() {
-				t := GinkgoT()
-				t.Setenv("RUN_ADDRESS", "localhost:8081")
-			})
-			AfterEach(func() {
-				t := GinkgoT()
-				t.Setenv("RUN_ADDRESS", "")
-				os.Args = defaultArgs
-				flag.CommandLine = defaultCommandLine
-			})
+			cfg, err = config.Get()
 
-			It("is env used fo config", func() {
-				Expect(err).Should(BeNil())
-				Expect(cfg.RunAddress).To(Equal("localhost:8081"))
-			})
-		})
-		When("env is unset and flag is set", func() {
-			BeforeEach(func() {
-				flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-				os.Args = append([]string{"cmd"}, "-a", "localhost:8091")
-			})
-			AfterEach(func() {
-				os.Args = defaultArgs
-				flag.CommandLine = defaultCommandLine
-			})
+			Expect(err).Should(BeNil())
+			Expect(cfg.RunAddress).To(Equal(expected))
+		},
 
-			It("is flag used for config", func() {
-				Expect(err).Should(BeNil())
-				Expect(cfg.RunAddress).To(Equal("localhost:8091"))
-			})
-		})
-		When("env is unset and flag is unset", func() {
-			It("is default used for config", func() {
-				Expect(err).Should(BeNil())
-				Expect(cfg.RunAddress).To(Equal("localhost:8080"))
-			})
-		})
-	})
-
-	Describe("Testing database URI", func() {
-		When("env is set and flag is set", func() {
-			It("is env used for config", func() {
-				Expect(cfg.DatabaseURI).To(Equal(""))
-			})
-		})
-		When("env is set and flag is unset", func() {
-			It("is env used fo config", func() {
-				Expect(cfg.DatabaseURI).To(Equal(""))
-			})
-		})
-		When("env is unset and flag is set", func() {
-			It("is flag used for config", func() {
-				Expect(cfg.DatabaseURI).To(Equal(""))
-			})
-		})
-		When("env is unset and flag is unset", func() {
-			It("is default used for config", func() {
-				Expect(cfg.DatabaseURI).To(Equal(""))
-			})
-		})
-	})
-
-	Describe("Testing address of accrual system", func() {
-		When("env is set and flag is set", func() {
-			It("is env used for config", func() {
-				Expect(cfg.AccrualSystemAddress).To(Equal(""))
-			})
-		})
-		When("env is set and flag is unset", func() {
-			It("is env used fo config", func() {
-				Expect(cfg.AccrualSystemAddress).To(Equal(""))
-			})
-		})
-		When("env is unset and flag is set", func() {
-			It("is flag used for config", func() {
-				Expect(cfg.AccrualSystemAddress).To(Equal(""))
-			})
-		})
-		When("env is unset and flag is unset", func() {
-			It("is default used for config", func() {
-				Expect(cfg.AccrualSystemAddress).To(Equal(""))
-			})
-		})
-	})
-
-	Describe("Testing secret key", func() {
-		When("env is set and flag is set", func() {
-			It("is env used for config", func() {
-				Expect(cfg.SecretKey).To(Equal(""))
-			})
-		})
-		When("env is set and flag is unset", func() {
-			It("is env used fo config", func() {
-				Expect(cfg.SecretKey).To(Equal(""))
-			})
-		})
-		When("env is unset and flag is set", func() {
-			It("is flag used for config", func() {
-				Expect(cfg.SecretKey).To(Equal(""))
-			})
-		})
-		When("env is unset and flag is unset", func() {
-			It("is default used for config", func() {
-				Expect(cfg.SecretKey).To(Equal(""))
-			})
-		})
-	})
+		EntryDescription("When env %s=%s, flag %s=%s and default=%s"),
+		Entry(nil, "RUN_ADDRESS", "localhost:8081", "-a", "localhost:8091", "localhost:8080", "localhost:8081"),
+		Entry(nil, "RUN_ADDRESS", "localhost:8081", "-a", "", "localhost:8080", "localhost:8081"),
+		Entry(nil, "RUN_ADDRESS", "localhost:8081", "", "", "localhost:8080", "localhost:8081"),
+		Entry(nil, "RUN_ADDRESS", "", "-a", "localhost:8091", "localhost:8080", "localhost:8091"),
+		Entry(nil, "", "", "-a", "localhost:8091", "localhost:8080", "localhost:8091"),
+		Entry(nil, "RUN_ADDRESS", "", "-a", "", "localhost:8080", ""),
+		Entry(nil, "", "", "-a", "", "localhost:8080", ""),
+		Entry(nil, "RUN_ADDRESS", "", "-a", "", "localhost:8080", ""),
+		Entry(nil, "RUN_ADDRESS", "", "", "", "localhost:8080", "localhost:8080"),
+		Entry(nil, "", "", "", "", "localhost:8080", "localhost:8080"),
+		Entry(nil, "", "", "", "", "localhost:8080", "localhost:8080"),
+	)
 })
