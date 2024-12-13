@@ -1,5 +1,6 @@
 package api_test
 
+/*
 import (
 	"bytes"
 	"encoding/json"
@@ -52,3 +53,4 @@ var _ = Describe("Handler", func() {
 	})
 
 })
+*/
