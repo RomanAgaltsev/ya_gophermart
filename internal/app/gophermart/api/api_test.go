@@ -2,21 +2,22 @@ package api_test
 
 import (
 	"bytes"
-	"context"
+	"errors"
 
-	//"encoding/json"
-
+	//"context"
+	"encoding/json"
 	"net/http"
 
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/api"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/balance"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/order"
+	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/repository"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/user"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/config"
 	balanceMocks "github.com/RomanAgaltsev/ya_gophermart/internal/mocks/balance"
 	orderMocks "github.com/RomanAgaltsev/ya_gophermart/internal/mocks/order"
 	userMocks "github.com/RomanAgaltsev/ya_gophermart/internal/mocks/user"
-	//"github.com/RomanAgaltsev/ya_gophermart/internal/model"
+	"github.com/RomanAgaltsev/ya_gophermart/internal/model"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -24,11 +25,16 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
+const (
+	ContentTypeJSON = "application/json"
+	ContentTypeText = "text/plain; charset=utf-8"
+)
+
 var _ = Describe("Handler", func() {
 	var (
 		err error
 
-		ctx context.Context
+		//ctx context.Context
 		cfg *config.Config
 
 		server *ghttp.Server
@@ -47,14 +53,17 @@ var _ = Describe("Handler", func() {
 		balanceRepository *balanceMocks.MockRepository
 
 		handler *api.Handler
+
+		endpoint string
+
+		usr      *model.User
+		usrBytes []byte
 	)
 
 	BeforeEach(func() {
-		ctx = context.Background()
-
 		cfg, err = config.Get()
 		Expect(err).NotTo(HaveOccurred())
-		Expect(err).ShouldNot(BeNil())
+		Expect(cfg).ShouldNot(BeNil())
 
 		server = ghttp.NewServer()
 
@@ -102,56 +111,132 @@ var _ = Describe("Handler", func() {
 
 	Context("Receiving request at the /api/user/register endpoint", func() {
 		BeforeEach(func() {
+			endpoint = "/api/user/register"
 			server.AppendHandlers(handler.UserRegistrion)
 		})
 
 		When("the method is POST, content type is right and payload is right", func() {
-			It("returns status 'OK' (200) and a cookie", func() {
+			BeforeEach(func() {
+				usr = &model.User{
+					Login:    "user",
+					Password: "password",
+				}
 
+				usrBytes, err = json.Marshal(usr)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				userRepository.EXPECT().CreateUser(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+				balanceRepository.EXPECT().CreateBalance(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+			})
+
+			It("returns status 'OK' (200) and a cookie", func() {
+				resp, err := http.Post(server.URL()+endpoint, ContentTypeJSON, bytes.NewReader(usrBytes))
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(resp.StatusCode).Should(Equal(http.StatusOK))
+
+				cookie := resp.Header.Get("Set-Cookie")
+				Expect(cookie).NotTo(BeEmpty())
 			})
 		})
 
 		When("the method is POST, content type is right but payload is wrong", func() {
-			It("returns status 'Bad request' (400) and no cookie", func() {
+			BeforeEach(func() {
+				usr = &model.User{
+					Login:    "user",
+					Password: "",
+				}
 
+				usrBytes, err = json.Marshal(usr)
+				Expect(err).ShouldNot(HaveOccurred())
+			})
+
+			It("returns status 'Bad request' (400) and no cookie", func() {
+				resp, err := http.Post(server.URL()+endpoint, ContentTypeJSON, bytes.NewReader(usrBytes))
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(resp.StatusCode).Should(Equal(http.StatusBadRequest))
+
+				cookie := resp.Header.Get("Set-Cookie")
+				Expect(cookie).To(BeEmpty())
 			})
 		})
 
-		When("the method is POST, content type is wrong and payload is wrong", func() {
-			It("returns status 'Bad request' (400) and no cookie", func() {
+		When("the method is POST, content type is wrong and payload is right", func() {
+			BeforeEach(func() {
+				usr = &model.User{
+					Login:    "user",
+					Password: "password",
+				}
 
+				usrBytes, err = json.Marshal(usr)
+				Expect(err).ShouldNot(HaveOccurred())
+			})
+
+			It("returns status 'Bad request' (400) and no cookie", func() {
+				resp, err := http.Post(server.URL()+endpoint, ContentTypeText, bytes.NewReader(usrBytes))
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(resp.StatusCode).Should(Equal(http.StatusBadRequest))
+
+				cookie := resp.Header.Get("Set-Cookie")
+				Expect(cookie).To(BeEmpty())
 			})
 		})
 
 		When("the method is POST, request is right but user already exists", func() {
-			It("returns status 'Conflict' (409) and no cookie", func() {
+			BeforeEach(func() {
+				usr = &model.User{
+					Login:    "user",
+					Password: "password",
+				}
 
+				usrBytes, err = json.Marshal(usr)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				userRepository.EXPECT().CreateUser(gomock.Any(), gomock.Any()).Return(repository.ErrConflict).Times(1)
+			})
+
+			It("returns status 'Conflict' (409) and no cookie", func() {
+				resp, err := http.Post(server.URL()+endpoint, ContentTypeJSON, bytes.NewReader(usrBytes))
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(resp.StatusCode).Should(Equal(http.StatusConflict))
+
+				cookie := resp.Header.Get("Set-Cookie")
+				Expect(cookie).To(BeEmpty())
 			})
 		})
 
-		When("the method is GET and no matter what content type and payload", func() {
+		When("the method is GET", func() {
 			It("returns status 'Method not allowed' (405)", func() {
+				resp, err := http.Get(server.URL() + endpoint)
 
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(resp.StatusCode).Should(Equal(http.StatusMethodNotAllowed))
 			})
 		})
 
 		When("everything with the request is right, but something has gone wrong with the service", func() {
-			It("returns status 'Internal server error' (500)", func() {
+			BeforeEach(func() {
+				usr = &model.User{
+					Login:    "user",
+					Password: "password",
+				}
 
+				usrBytes, err = json.Marshal(usr)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				userRepository.EXPECT().CreateUser(gomock.Any(), gomock.Any()).Return(errors.New("a strange mistake")).Times(1)
+			})
+
+			It("returns status 'Internal server error' (500)", func() {
+				resp, err := http.Post(server.URL()+endpoint, ContentTypeJSON, bytes.NewReader(usrBytes))
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(resp.StatusCode).Should(Equal(http.StatusInternalServerError))
 			})
 		})
-
-		//		When("", func() {
-		//			It("Returns status OK (200) and a cookie", func() {
-		//				//resp, err := http.Post(server.URL()+"/api/user/register", "application/json", bytes.NewReader(userBytes))
-		//				resp, err := http.Post(server.URL()+"/api/user/register", "application/json", nil)
-		//
-		//				Expect(err).ShouldNot(HaveOccurred())
-		//				Expect(resp.StatusCode).Should(Equal(http.StatusOK))
-		//
-		//				//resp.Cookies()
-		//			})
-		//		})
 	})
 
 	Context("Receiving request at the /api/user/login endpoint", func() {
