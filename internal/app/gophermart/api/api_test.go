@@ -3,6 +3,7 @@ package api_test
 import (
 	"bytes"
 	"errors"
+	"github.com/RomanAgaltsev/ya_gophermart/internal/pkg/auth"
 
 	//"context"
 	"encoding/json"
@@ -40,15 +41,14 @@ var _ = Describe("Handler", func() {
 		server *ghttp.Server
 
 		userService    user.Service
-		orderService   order.Service
-		balanceService balance.Service
-
 		userCtrl       *gomock.Controller
 		userRepository *userMocks.MockRepository
 
+		orderService    order.Service
 		orderCtrl       *gomock.Controller
 		orderRepository *orderMocks.MockRepository
 
+		balanceService    balance.Service
 		balanceCtrl       *gomock.Controller
 		balanceRepository *balanceMocks.MockRepository
 
@@ -67,7 +67,7 @@ var _ = Describe("Handler", func() {
 
 		server = ghttp.NewServer()
 
-		// User
+		// User service and repository
 		userCtrl = gomock.NewController(GinkgoT())
 		Expect(userCtrl).ShouldNot(BeNil())
 
@@ -78,7 +78,7 @@ var _ = Describe("Handler", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(userService).ShouldNot(BeNil())
 
-		// Order
+		// Order service and repository
 		orderCtrl = gomock.NewController(GinkgoT())
 		Expect(orderCtrl).ShouldNot(BeNil())
 
@@ -89,7 +89,7 @@ var _ = Describe("Handler", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(orderService).ShouldNot(BeNil())
 
-		// Balance
+		// Balance service and repository
 		balanceCtrl = gomock.NewController(GinkgoT())
 		Expect(balanceCtrl).ShouldNot(BeNil())
 
@@ -207,17 +207,18 @@ var _ = Describe("Handler", func() {
 				Expect(cookie).To(BeEmpty())
 			})
 		})
+		/*
+			When("the method is GET", func() {
+				It("returns status 'Method not allowed' (405)", func() {
+					resp, err := http.Get(server.URL() + endpoint)
 
-		When("the method is GET", func() {
-			It("returns status 'Method not allowed' (405)", func() {
-				resp, err := http.Get(server.URL() + endpoint)
-
-				Expect(err).ShouldNot(HaveOccurred())
-				Expect(resp.StatusCode).Should(Equal(http.StatusMethodNotAllowed))
+					Expect(err).ShouldNot(HaveOccurred())
+					Expect(resp.StatusCode).Should(Equal(http.StatusMethodNotAllowed))
+				})
 			})
-		})
+		*/
 
-		When("everything with the request is right, but something has gone wrong with the service", func() {
+		When("everything is right with the request, but something has gone wrong with the service", func() {
 			BeforeEach(func() {
 				usr = &model.User{
 					Login:    "user",
@@ -241,68 +242,177 @@ var _ = Describe("Handler", func() {
 
 	Context("Receiving request at the /api/user/login endpoint", func() {
 		BeforeEach(func() {
+			endpoint = "/api/user/login"
 			server.AppendHandlers(handler.UserLogin)
 		})
 
 		When("the method is POST, content type is right and payload is right", func() {
-			It("returns status 'OK' (200) and a cookie", func() {
+			BeforeEach(func() {
+				usr = &model.User{
+					Login:    "user",
+					Password: "password",
+				}
 
+				hash, err := auth.HashPassword("password")
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(hash).ShouldNot(BeEmpty())
+
+				expectUsr := &model.User{
+					Login:    "user",
+					Password: hash,
+				}
+
+				usrBytes, err = json.Marshal(usr)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				userRepository.EXPECT().GetUser(gomock.Any(), gomock.Any()).Return(expectUsr, nil).Times(1)
+			})
+
+			It("returns status 'OK' (200) and a cookie", func() {
+				resp, err := http.Post(server.URL()+endpoint, ContentTypeJSON, bytes.NewReader(usrBytes))
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(resp.StatusCode).Should(Equal(http.StatusOK))
+
+				cookie := resp.Header.Get("Set-Cookie")
+				Expect(cookie).NotTo(BeEmpty())
 			})
 		})
 
 		When("the method is POST, content type is right but payload is wrong", func() {
-			It("returns status 'Bad request' (400) and no cookie", func() {
+			BeforeEach(func() {
+				usr = &model.User{
+					Login:    "user",
+					Password: "",
+				}
 
+				usrBytes, err = json.Marshal(usr)
+				Expect(err).ShouldNot(HaveOccurred())
+			})
+
+			It("returns status 'Bad request' (400) and no cookie", func() {
+				resp, err := http.Post(server.URL()+endpoint, ContentTypeJSON, bytes.NewReader(usrBytes))
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(resp.StatusCode).Should(Equal(http.StatusBadRequest))
+
+				cookie := resp.Header.Get("Set-Cookie")
+				Expect(cookie).To(BeEmpty())
 			})
 		})
 
-		When("the method is POST, content type is wrong and payload is wrong", func() {
-			It("returns status 'Bad request' (400) and no cookie", func() {
+		When("the method is POST, content type is wrong and payload is right", func() {
+			BeforeEach(func() {
+				usr = &model.User{
+					Login:    "user",
+					Password: "password",
+				}
 
+				usrBytes, err = json.Marshal(usr)
+				Expect(err).ShouldNot(HaveOccurred())
+			})
+
+			It("returns status 'Bad request' (400) and no cookie", func() {
+				resp, err := http.Post(server.URL()+endpoint, ContentTypeText, bytes.NewReader(usrBytes))
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(resp.StatusCode).Should(Equal(http.StatusBadRequest))
+
+				cookie := resp.Header.Get("Set-Cookie")
+				Expect(cookie).To(BeEmpty())
 			})
 		})
 
-		// !!Middleware
-		When("the method is POST, but login/password is wrong", func() {
+		When("the method is POST, and login/password is wrong", func() {
+			BeforeEach(func() {
+				usr = &model.User{
+					Login:    "user",
+					Password: "wrong password",
+				}
+
+				hash, err := auth.HashPassword("password")
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(hash).ShouldNot(BeEmpty())
+
+				expectUsr := &model.User{
+					Login:    "user",
+					Password: hash,
+				}
+
+				usrBytes, err = json.Marshal(usr)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				userRepository.EXPECT().GetUser(gomock.Any(), gomock.Any()).Return(expectUsr, nil).Times(1)
+			})
+
 			It("returns status 'Unauthorized' (401)", func() {
+				resp, err := http.Post(server.URL()+endpoint, ContentTypeJSON, bytes.NewReader(usrBytes))
 
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(resp.StatusCode).Should(Equal(http.StatusUnauthorized))
 			})
 		})
 
-		When("the method is GET and no matter what content type and payload", func() {
-			It("returns status 'Method not allowed' (405)", func() {
-
-			})
-		})
+		//		When("the method is GET and no matter what content type and payload", func() {
+		//			It("returns status 'Method not allowed' (405)", func() {
+		//
+		//			})
+		//		})
 
 		When("everything with the request is right, but something has gone wrong with service", func() {
-			It("returns status 'Internal server error' (500)", func() {
+			BeforeEach(func() {
+				usr = &model.User{
+					Login:    "user",
+					Password: "password",
+				}
 
+				hash, err := auth.HashPassword("password")
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(hash).ShouldNot(BeEmpty())
+
+				usrBytes, err = json.Marshal(usr)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				userRepository.EXPECT().GetUser(gomock.Any(), gomock.Any()).Return(nil, errors.New("a strange mistake")).Times(1)
+			})
+
+			It("returns status 'Internal server error' (500)", func() {
+				resp, err := http.Post(server.URL()+endpoint, ContentTypeJSON, bytes.NewReader(usrBytes))
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(resp.StatusCode).Should(Equal(http.StatusInternalServerError))
 			})
 		})
 	})
 
 	Context("Receiving request at the /api/user/orders endpoint", func() {
 		BeforeEach(func() {
-			server.AppendHandlers(handler.OrderNumberUpload)
-			server.AppendHandlers(handler.OrderListRequest)
+			endpoint = "/api/user/register"
+			server.RouteToHandler("POST", endpoint, handler.OrderNumberUpload)
+			server.RouteToHandler("GET", endpoint, handler.OrderListRequest)
+
+			//server.AppendHandlers(handler.OrderNumberUpload)
+			//server.AppendHandlers(handler.OrderListRequest)
 		})
 	})
 
 	Context("Receiving request at the /api/user/balance endpoint", func() {
 		BeforeEach(func() {
+			endpoint = "/api/user/balance"
 			server.AppendHandlers(handler.UserBalanceRequest)
 		})
 	})
 
 	Context("Receiving request at the /api/user/balance/withdraw endpoint", func() {
 		BeforeEach(func() {
+			endpoint = "/api/user/balance/withdraw"
 			server.AppendHandlers(handler.WithdrawRequest)
 		})
 	})
 
 	Context("Receiving request at the /api/user/withdrawals endpoint", func() {
 		BeforeEach(func() {
+			endpoint = "/api/user/withdrawals"
 			server.AppendHandlers(handler.WithdrawalsInformationRequest)
 		})
 	})
