@@ -2,12 +2,10 @@ package api_test
 
 import (
 	"bytes"
-	"errors"
-	"github.com/RomanAgaltsev/ya_gophermart/internal/pkg/auth"
-
-	//"context"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"time"
 
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/api"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/balance"
@@ -19,7 +17,9 @@ import (
 	orderMocks "github.com/RomanAgaltsev/ya_gophermart/internal/mocks/order"
 	userMocks "github.com/RomanAgaltsev/ya_gophermart/internal/mocks/user"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/model"
+	"github.com/RomanAgaltsev/ya_gophermart/internal/pkg/auth"
 
+	"github.com/go-chi/jwtauth/v5"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/ghttp"
@@ -33,9 +33,9 @@ const (
 
 var _ = Describe("Handler", func() {
 	var (
-		err error
+		err                 error
+		errSomethingStrange error
 
-		//ctx context.Context
 		cfg *config.Config
 
 		server *ghttp.Server
@@ -58,9 +58,26 @@ var _ = Describe("Handler", func() {
 
 		usr      *model.User
 		usrBytes []byte
+
+		ja     *jwtauth.JWTAuth
+		cookie *http.Cookie
+
+		expectOrders      model.Orders
+		expectBalance     model.Balance
+		expectWithdrawals model.Withdrawals
+
+		withdrawal      model.Withdrawal
+		withdrawalBytes []byte
+
+		login       string
+		secretKey   string
+		tokenString string
+		orderNumber string
 	)
 
 	BeforeEach(func() {
+		errSomethingStrange = errors.New("something strange")
+
 		cfg, err = config.Get()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(cfg).ShouldNot(BeNil())
@@ -96,7 +113,7 @@ var _ = Describe("Handler", func() {
 		balanceRepository = balanceMocks.NewMockRepository(balanceCtrl)
 		Expect(balanceRepository).ShouldNot(BeNil())
 
-		balanceService, err = balance.NewService(balanceRepository, cfg)
+		balanceService, err = balance.NewService(balanceRepository, cfg, false)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(balanceService).ShouldNot(BeNil())
 
@@ -207,16 +224,6 @@ var _ = Describe("Handler", func() {
 				Expect(cookie).To(BeEmpty())
 			})
 		})
-		/*
-			When("the method is GET", func() {
-				It("returns status 'Method not allowed' (405)", func() {
-					resp, err := http.Get(server.URL() + endpoint)
-
-					Expect(err).ShouldNot(HaveOccurred())
-					Expect(resp.StatusCode).Should(Equal(http.StatusMethodNotAllowed))
-				})
-			})
-		*/
 
 		When("everything is right with the request, but something has gone wrong with the service", func() {
 			BeforeEach(func() {
@@ -228,7 +235,7 @@ var _ = Describe("Handler", func() {
 				usrBytes, err = json.Marshal(usr)
 				Expect(err).ShouldNot(HaveOccurred())
 
-				userRepository.EXPECT().CreateUser(gomock.Any(), gomock.Any()).Return(errors.New("a strange mistake")).Times(1)
+				userRepository.EXPECT().CreateUser(gomock.Any(), gomock.Any()).Return(errSomethingStrange).Times(1)
 			})
 
 			It("returns status 'Internal server error' (500)", func() {
@@ -353,13 +360,7 @@ var _ = Describe("Handler", func() {
 			})
 		})
 
-		//		When("the method is GET and no matter what content type and payload", func() {
-		//			It("returns status 'Method not allowed' (405)", func() {
-		//
-		//			})
-		//		})
-
-		When("everything with the request is right, but something has gone wrong with service", func() {
+		When("everything is right with the request, but something has gone wrong with service", func() {
 			BeforeEach(func() {
 				usr = &model.User{
 					Login:    "user",
@@ -373,7 +374,7 @@ var _ = Describe("Handler", func() {
 				usrBytes, err = json.Marshal(usr)
 				Expect(err).ShouldNot(HaveOccurred())
 
-				userRepository.EXPECT().GetUser(gomock.Any(), gomock.Any()).Return(nil, errors.New("a strange mistake")).Times(1)
+				userRepository.EXPECT().GetUser(gomock.Any(), gomock.Any()).Return(nil, errSomethingStrange).Times(1)
 			})
 
 			It("returns status 'Internal server error' (500)", func() {
@@ -391,8 +392,228 @@ var _ = Describe("Handler", func() {
 			server.RouteToHandler("POST", endpoint, handler.OrderNumberUpload)
 			server.RouteToHandler("GET", endpoint, handler.OrderListRequest)
 
-			//server.AppendHandlers(handler.OrderNumberUpload)
-			//server.AppendHandlers(handler.OrderListRequest)
+			secretKey = "secret"
+			login = "user"
+
+			ja = auth.NewAuth(secretKey)
+			Expect(ja).ShouldNot(BeNil())
+
+			_, tokenString, err = auth.NewJWTToken(ja, login)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(tokenString).NotTo(BeEmpty())
+
+			cookie = auth.NewCookieWithDefaults(tokenString)
+		})
+
+		// POST
+		When("the method is POST, everything is right but the order has been already created by this user", func() {
+			BeforeEach(func() {
+				orderNumber = "12345678903"
+
+				expectOrder := &model.Order{
+					Login:      login,
+					Number:     orderNumber,
+					Status:     "NEW",
+					Accrual:    0,
+					UploadedAt: time.Now(),
+				}
+
+				orderRepository.EXPECT().CreateOrder(gomock.Any(), gomock.Any()).Return(expectOrder, repository.ErrConflict).Times(1)
+			})
+
+			It("returns status 'OK' (200)", func() {
+				request, err := http.NewRequest(http.MethodPost, server.URL()+endpoint, bytes.NewReader([]byte(orderNumber)))
+				Expect(err).ShouldNot(HaveOccurred())
+
+				request.Header.Set("Content-Type", ContentTypeText)
+				request.AddCookie(cookie)
+
+				response, err := http.DefaultClient.Do(request)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(response.StatusCode).Should(Equal(http.StatusOK))
+			})
+		})
+
+		When("the method is POST, everything is right and order doesn`t exist", func() {
+			BeforeEach(func() {
+				orderNumber = "12345678903"
+
+				expectOrder := &model.Order{
+					Login:      login,
+					Number:     orderNumber,
+					Status:     "NEW",
+					Accrual:    0,
+					UploadedAt: time.Now(),
+				}
+
+				orderRepository.EXPECT().CreateOrder(gomock.Any(), gomock.Any()).Return(expectOrder, nil).Times(1)
+			})
+
+			It("returns status 'Accepted' (202)", func() {
+				request, err := http.NewRequest(http.MethodPost, server.URL()+endpoint, bytes.NewReader([]byte(orderNumber)))
+				Expect(err).ShouldNot(HaveOccurred())
+
+				request.Header.Set("Content-Type", ContentTypeText)
+				request.AddCookie(cookie)
+
+				response, err := http.DefaultClient.Do(request)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(response.StatusCode).Should(Equal(http.StatusAccepted))
+			})
+		})
+
+		When("the method is POST and order number is empty", func() {
+			BeforeEach(func() {
+				orderNumber = ""
+			})
+
+			It("returns status 'Bad request' (400)", func() {
+				request, err := http.NewRequest(http.MethodPost, server.URL()+endpoint, bytes.NewReader([]byte(orderNumber)))
+				Expect(err).ShouldNot(HaveOccurred())
+
+				request.Header.Set("Content-Type", ContentTypeText)
+				request.AddCookie(cookie)
+
+				response, err := http.DefaultClient.Do(request)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(response.StatusCode).Should(Equal(http.StatusBadRequest))
+			})
+		})
+
+		When("the method is POST, everything is right but the order has been already created by another user", func() {
+			BeforeEach(func() {
+				orderNumber = "12345678903"
+
+				expectOrder := &model.Order{
+					Login:      "another user",
+					Number:     orderNumber,
+					Status:     "NEW",
+					Accrual:    0,
+					UploadedAt: time.Now(),
+				}
+
+				orderRepository.EXPECT().CreateOrder(gomock.Any(), gomock.Any()).Return(expectOrder, repository.ErrConflict).Times(1)
+			})
+
+			It("returns status 'Conflict' (409)", func() {
+				request, err := http.NewRequest(http.MethodPost, server.URL()+endpoint, bytes.NewReader([]byte(orderNumber)))
+				Expect(err).ShouldNot(HaveOccurred())
+
+				request.Header.Set("Content-Type", ContentTypeText)
+				request.AddCookie(cookie)
+
+				response, err := http.DefaultClient.Do(request)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(response.StatusCode).Should(Equal(http.StatusConflict))
+			})
+		})
+
+		When("the method is POST and the order number is invalid", func() {
+			BeforeEach(func() {
+				orderNumber = "order #123456"
+			})
+
+			It("returns status 'Unprocessable entity' (422)", func() {
+				request, err := http.NewRequest(http.MethodPost, server.URL()+endpoint, bytes.NewReader([]byte(orderNumber)))
+				Expect(err).ShouldNot(HaveOccurred())
+
+				request.Header.Set("Content-Type", ContentTypeText)
+				request.AddCookie(cookie)
+
+				response, err := http.DefaultClient.Do(request)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(response.StatusCode).Should(Equal(http.StatusUnprocessableEntity))
+			})
+		})
+
+		When("the method is POST, everything is right with the request, but something has gone wrong with service", func() {
+			BeforeEach(func() {
+				orderNumber = "12345678903"
+
+				orderRepository.EXPECT().CreateOrder(gomock.Any(), gomock.Any()).Return(nil, errSomethingStrange).Times(1)
+			})
+
+			It("returns status 'Internal server error' (500)", func() {
+				request, err := http.NewRequest(http.MethodPost, server.URL()+endpoint, bytes.NewReader([]byte(orderNumber)))
+				Expect(err).ShouldNot(HaveOccurred())
+
+				request.Header.Set("Content-Type", ContentTypeText)
+				request.AddCookie(cookie)
+
+				response, err := http.DefaultClient.Do(request)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(response.StatusCode).Should(Equal(http.StatusInternalServerError))
+			})
+		})
+
+		// GET
+		When("the method is GET and there are orders to return", func() {
+			BeforeEach(func() {
+				expectOrders = []*model.Order{
+					{
+						Login:      login,
+						Number:     orderNumber,
+						Status:     "NEW",
+						Accrual:    0,
+						UploadedAt: time.Now(),
+					},
+				}
+
+				orderRepository.EXPECT().GetListOfOrders(gomock.Any(), gomock.Any()).Return(expectOrders, nil).Times(1)
+			})
+
+			It("returns status 'OK' (200) and a list of orders in JSON", func() {
+				request, err := http.NewRequest(http.MethodGet, server.URL()+endpoint, nil)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				request.AddCookie(cookie)
+
+				response, err := http.DefaultClient.Do(request)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(response.StatusCode).Should(Equal(http.StatusOK))
+
+				var orders model.Orders
+				err = json.NewDecoder(response.Body).Decode(&orders)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(orders).ShouldNot(BeEmpty())
+				Expect(orders).Should(HaveLen(len(expectOrders)))
+			})
+		})
+
+		When("the method is GET and there are no orders to return", func() {
+			BeforeEach(func() {
+				expectOrders = []*model.Order{}
+
+				orderRepository.EXPECT().GetListOfOrders(gomock.Any(), gomock.Any()).Return(expectOrders, nil).Times(1)
+			})
+
+			It("returns status 'No content' (204) and response body is empty", func() {
+				request, err := http.NewRequest(http.MethodGet, server.URL()+endpoint, nil)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				request.AddCookie(cookie)
+
+				response, err := http.DefaultClient.Do(request)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(response.StatusCode).Should(Equal(http.StatusNoContent))
+			})
+		})
+
+		When("the method is GET, but something has gone wrong with the service", func() {
+			BeforeEach(func() {
+				orderRepository.EXPECT().GetListOfOrders(gomock.Any(), gomock.Any()).Return(nil, errSomethingStrange).Times(1)
+			})
+
+			It("returns status 'Internal server error' (500)", func() {
+				request, err := http.NewRequest(http.MethodGet, server.URL()+endpoint, nil)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				request.AddCookie(cookie)
+
+				response, err := http.DefaultClient.Do(request)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(response.StatusCode).Should(Equal(http.StatusInternalServerError))
+			})
 		})
 	})
 
@@ -400,6 +621,62 @@ var _ = Describe("Handler", func() {
 		BeforeEach(func() {
 			endpoint = "/api/user/balance"
 			server.AppendHandlers(handler.UserBalanceRequest)
+
+			secretKey = "secret"
+			login = "user"
+
+			ja = auth.NewAuth(secretKey)
+			Expect(ja).ShouldNot(BeNil())
+
+			_, tokenString, err = auth.NewJWTToken(ja, login)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(tokenString).NotTo(BeEmpty())
+
+			cookie = auth.NewCookieWithDefaults(tokenString)
+		})
+
+		When("the method is GET and everything is right", func() {
+			BeforeEach(func() {
+				expectBalance = model.Balance{
+					Current:   500,
+					Withdrawn: 42,
+				}
+
+				balanceRepository.EXPECT().GetBalance(gomock.Any(), gomock.Any()).Return(&expectBalance, nil).Times(1)
+			})
+
+			It("returns status 'OK' (200) and a balance structure in JSON", func() {
+				request, err := http.NewRequest(http.MethodGet, server.URL()+endpoint, nil)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				request.AddCookie(cookie)
+
+				response, err := http.DefaultClient.Do(request)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(response.StatusCode).Should(Equal(http.StatusOK))
+
+				var blnc model.Balance
+				err = json.NewDecoder(response.Body).Decode(&blnc)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(blnc).To(Equal(expectBalance))
+			})
+		})
+
+		When("the method is GET, but something has gone wrong with the service", func() {
+			BeforeEach(func() {
+				balanceRepository.EXPECT().GetBalance(gomock.Any(), gomock.Any()).Return(nil, errSomethingStrange).Times(1)
+			})
+
+			It("returns status 'Internal server error' (500)", func() {
+				request, err := http.NewRequest(http.MethodGet, server.URL()+endpoint, nil)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				request.AddCookie(cookie)
+
+				response, err := http.DefaultClient.Do(request)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(response.StatusCode).Should(Equal(http.StatusInternalServerError))
+			})
 		})
 	})
 
@@ -407,6 +684,122 @@ var _ = Describe("Handler", func() {
 		BeforeEach(func() {
 			endpoint = "/api/user/balance/withdraw"
 			server.AppendHandlers(handler.WithdrawRequest)
+
+			secretKey = "secret"
+			login = "user"
+
+			ja = auth.NewAuth(secretKey)
+			Expect(ja).ShouldNot(BeNil())
+
+			_, tokenString, err = auth.NewJWTToken(ja, login)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(tokenString).NotTo(BeEmpty())
+
+			cookie = auth.NewCookieWithDefaults(tokenString)
+		})
+
+		When("the method is POST and balance is enough to withdraw", func() {
+			BeforeEach(func() {
+				withdrawal = model.Withdrawal{
+					Login:       login,
+					OrderNumber: "2377225624",
+					Sum:         751,
+					ProcessedAt: time.Now(),
+				}
+
+				withdrawalBytes, err = json.Marshal(withdrawal)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				balanceRepository.EXPECT().WithdrawFromBalance(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
+			})
+
+			It("returns status 'OK' (200)", func() {
+				request, err := http.NewRequest(http.MethodPost, server.URL()+endpoint, bytes.NewReader(withdrawalBytes))
+				Expect(err).ShouldNot(HaveOccurred())
+
+				request.Header.Set("Content-Type", ContentTypeJSON)
+				request.AddCookie(cookie)
+
+				response, err := http.DefaultClient.Do(request)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(response.StatusCode).Should(Equal(http.StatusOK))
+			})
+		})
+
+		When("the method is POST and balance is not enough to withdraw", func() {
+			BeforeEach(func() {
+				withdrawal = model.Withdrawal{
+					OrderNumber: "2377225624",
+					Sum:         751,
+				}
+
+				withdrawalBytes, err = json.Marshal(withdrawal)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				balanceRepository.EXPECT().WithdrawFromBalance(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(repository.ErrNegativeBalance).Times(1)
+			})
+
+			It("returns status 'Payment required' (402)", func() {
+				request, err := http.NewRequest(http.MethodPost, server.URL()+endpoint, bytes.NewReader(withdrawalBytes))
+				Expect(err).ShouldNot(HaveOccurred())
+
+				request.Header.Set("Content-Type", ContentTypeJSON)
+				request.AddCookie(cookie)
+
+				response, err := http.DefaultClient.Do(request)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(response.StatusCode).Should(Equal(http.StatusPaymentRequired))
+			})
+		})
+
+		When("the method is POST and the order number is invalid", func() {
+			BeforeEach(func() {
+				withdrawal = model.Withdrawal{
+					OrderNumber: "Order #12345",
+					Sum:         751,
+				}
+
+				withdrawalBytes, err = json.Marshal(withdrawal)
+				Expect(err).ShouldNot(HaveOccurred())
+			})
+
+			It("returns status 'Unprocessable entity' (422)", func() {
+				request, err := http.NewRequest(http.MethodPost, server.URL()+endpoint, bytes.NewReader(withdrawalBytes))
+				Expect(err).ShouldNot(HaveOccurred())
+
+				request.Header.Set("Content-Type", ContentTypeJSON)
+				request.AddCookie(cookie)
+
+				response, err := http.DefaultClient.Do(request)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(response.StatusCode).Should(Equal(http.StatusUnprocessableEntity))
+			})
+		})
+
+		When("the method is POST, everything is right with the request, but something has gone wrong with service", func() {
+			BeforeEach(func() {
+				withdrawal = model.Withdrawal{
+					OrderNumber: "2377225624",
+					Sum:         751,
+				}
+
+				withdrawalBytes, err = json.Marshal(withdrawal)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				balanceRepository.EXPECT().WithdrawFromBalance(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(errSomethingStrange).Times(1)
+			})
+
+			It("returns status 'Internal server error' (500)", func() {
+				request, err := http.NewRequest(http.MethodPost, server.URL()+endpoint, bytes.NewReader(withdrawalBytes))
+				Expect(err).ShouldNot(HaveOccurred())
+
+				request.Header.Set("Content-Type", ContentTypeJSON)
+				request.AddCookie(cookie)
+
+				response, err := http.DefaultClient.Do(request)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(response.StatusCode).Should(Equal(http.StatusInternalServerError))
+			})
 		})
 	})
 
@@ -414,7 +807,85 @@ var _ = Describe("Handler", func() {
 		BeforeEach(func() {
 			endpoint = "/api/user/withdrawals"
 			server.AppendHandlers(handler.WithdrawalsInformationRequest)
+
+			secretKey = "secret"
+			login = "user"
+
+			ja = auth.NewAuth(secretKey)
+			Expect(ja).ShouldNot(BeNil())
+
+			_, tokenString, err = auth.NewJWTToken(ja, login)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(tokenString).NotTo(BeEmpty())
+
+			cookie = auth.NewCookieWithDefaults(tokenString)
+		})
+
+		When("the method is GET and there are withdrawals to return", func() {
+			BeforeEach(func() {
+				expectWithdrawals = model.Withdrawals{
+					{
+						OrderNumber: "2377225624",
+						Sum:         500,
+						ProcessedAt: time.Now(),
+					},
+				}
+
+				balanceRepository.EXPECT().GetListOfWithdrawals(gomock.Any(), gomock.Any()).Return(expectWithdrawals, nil).Times(1)
+			})
+
+			It("returns status 'OK' (200) and a list of withdrawals in JSON", func() {
+				request, err := http.NewRequest(http.MethodGet, server.URL()+endpoint, nil)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				request.AddCookie(cookie)
+
+				response, err := http.DefaultClient.Do(request)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(response.StatusCode).Should(Equal(http.StatusOK))
+
+				var withdrawals model.Withdrawals
+				err = json.NewDecoder(response.Body).Decode(&withdrawals)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(expectWithdrawals).ShouldNot(BeEmpty())
+				Expect(withdrawals).Should(HaveLen(len(expectWithdrawals)))
+			})
+		})
+
+		When("the method is GET and there are no withdrawals to return", func() {
+			BeforeEach(func() {
+				expectWithdrawals = model.Withdrawals{}
+
+				balanceRepository.EXPECT().GetListOfWithdrawals(gomock.Any(), gomock.Any()).Return(expectWithdrawals, nil).Times(1)
+			})
+
+			It("returns status 'No content' (204) and response body is empty", func() {
+				request, err := http.NewRequest(http.MethodGet, server.URL()+endpoint, nil)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				request.AddCookie(cookie)
+
+				response, err := http.DefaultClient.Do(request)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(response.StatusCode).Should(Equal(http.StatusNoContent))
+			})
+		})
+
+		When("the method is GET, but something has gone wrong with the service", func() {
+			BeforeEach(func() {
+				balanceRepository.EXPECT().GetListOfWithdrawals(gomock.Any(), gomock.Any()).Return(nil, errSomethingStrange).Times(1)
+			})
+
+			It("returns status 'Internal server error' (500)", func() {
+				request, err := http.NewRequest(http.MethodGet, server.URL()+endpoint, nil)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				request.AddCookie(cookie)
+
+				response, err := http.DefaultClient.Do(request)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(response.StatusCode).Should(Equal(http.StatusInternalServerError))
+			})
 		})
 	})
-
 })

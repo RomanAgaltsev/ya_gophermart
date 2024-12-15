@@ -103,7 +103,7 @@ func (a *App) initServices() error {
 	a.orderService = orderService
 
 	// Create balance service
-	balanceService, err := balance.NewService(repo, a.cfg)
+	balanceService, err := balance.NewService(repo, a.cfg, true)
 	if err != nil {
 		return nil
 	}

@@ -39,13 +39,14 @@ type Repository interface {
 	UpdateBalanceAccrued(ctx context.Context, order *model.Order, accrual *model.OrderAccrual) error
 }
 
-func NewService(repository Repository, cfg *config.Config) (Service, error) {
+func NewService(repository Repository, cfg *config.Config, runProcessing bool) (Service, error) {
 	balanceService := &service{
 		repository: repository,
 		cfg:        cfg,
 	}
-
-	go balanceService.ordersProcessing()
+	if runProcessing {
+		go balanceService.ordersProcessing()
+	}
 
 	return balanceService, nil
 }
