@@ -2,13 +2,15 @@ package repository_test
 
 import (
 	"context"
-	//"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
+	//"database/sql"
+	"time"
 
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/repository"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/mocks/repository"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/model"
 
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"go.uber.org/mock/gomock"
@@ -92,7 +94,9 @@ var _ = Describe("Repository", func() {
 		mockPool *pgxpool.MockPgxPool
 		repo     *repository.Repository
 
-		user *model.User
+		user       *model.User
+		expectUser *model.User
+		login      string
 	)
 
 	BeforeEach(func() {
@@ -111,19 +115,19 @@ var _ = Describe("Repository", func() {
 		ctrl.Finish()
 	})
 
-	Context("Executing CreateUser method", func() {
+	Context("Calling CreateUser method", func() {
 		When("user doesn't exist", func() {
 			BeforeEach(func() {
 				login := "user"
 				password := "password"
-				//insertedID := 1
+				var insertedID int32 = 1
 
 				user = &model.User{
 					Login:    login,
 					Password: password,
 				}
-				//pgxRow := NewRow(columns, 1, 2.3)
-				mockPool.EXPECT().QueryRow(ctx, createUser, login, password).Return(nil)
+				pgxRow := pgxpool.NewRow(insertedID).WithError(nil)
+				mockPool.EXPECT().QueryRow(ctx, createUser, login, password).Return(pgxRow)
 			})
 
 			It("returns nil error", func() {
@@ -136,20 +140,303 @@ var _ = Describe("Repository", func() {
 			BeforeEach(func() {
 				login := "user"
 				password := "password"
-				//insertedID := 0
+				var insertedID int32 = 0
 
 				user = &model.User{
 					Login:    login,
 					Password: password,
 				}
 
-				mockPool.EXPECT().QueryRow(ctx, createUser, login, password).Return(nil)
+				pgxRow := pgxpool.NewRow(insertedID).WithError(&pgconn.PgError{Code: pgerrcode.IntegrityConstraintViolation})
+				mockPool.EXPECT().QueryRow(ctx, createUser, login, password).Return(pgxRow)
 			})
 
 			It("returns data conflict error", func() {
 				err = repo.CreateUser(ctx, user)
 				Expect(err).Should(HaveOccurred())
-				Expect(err).To(Equal(pgconn.PgError{}))
+				Expect(err).To(Equal(repository.ErrConflict))
+			})
+		})
+	})
+
+	Context("Calling GetUser method", func() {
+		// TODO
+		XWhen("user doesn't exist", func() {
+			BeforeEach(func() {
+				var ID int32 = 0
+				login = ""
+				password := ""
+				createdAt := time.Now()
+
+				pgxRow := pgxpool.NewRow(ID, login, password, createdAt)
+				//.WithError(sql.ErrNoRows)
+				mockPool.EXPECT().QueryRow(ctx, getUser, login).Return(pgxRow)
+			})
+
+			It("returns nil user and nil error", func() {
+				_, err := repo.GetUser(ctx, login)
+				//Expect(err).Should(HaveOccurred())
+				Expect(err).ShouldNot(HaveOccurred())
+				//Expect(user).To(BeNil())
+			})
+		})
+
+		When("user exists", func() {
+			BeforeEach(func() {
+				var ID int32 = 1
+				login = "user"
+				password := "password"
+				createdAt := time.Now()
+
+				expectUser = &model.User{
+					Login:    login,
+					Password: password,
+				}
+
+				pgxRow := pgxpool.NewRow(ID, login, password, createdAt)
+				mockPool.EXPECT().QueryRow(ctx, getUser, login).Return(pgxRow)
+			})
+
+			It("returns a user and nil error", func() {
+				user, err = repo.GetUser(ctx, login)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(*user).To(Equal(*expectUser))
+			})
+		})
+
+		When("something has gone wrong with the query", func() {
+			BeforeEach(func() {
+
+			})
+
+			It("returns nil user and an error", func() {
+
+			})
+		})
+	})
+
+	Context("Calling CreateOrder method", func() {
+		When("order doesn't exist", func() {
+			BeforeEach(func() {
+
+			})
+
+			It("returns nil order and nil error", func() {
+
+			})
+		})
+
+		When("order exists", func() {
+			BeforeEach(func() {
+
+			})
+
+			It("returns the order and data conflict error", func() {
+
+			})
+		})
+
+		When("something has gone wrong with the query", func() {
+			BeforeEach(func() {
+
+			})
+
+			It("returns nil order and an error", func() {
+
+			})
+		})
+	})
+
+	Context("Calling GetListOfOrders method", func() {
+		When("orders exist", func() {
+			BeforeEach(func() {
+
+			})
+
+			It("returns a non-empty list of orders and nil error", func() {
+
+			})
+		})
+
+		When("orders don't exist", func() {
+			BeforeEach(func() {
+
+			})
+
+			It("returns an empty list of orders and nil error", func() {
+
+			})
+		})
+
+		When("something has gone wrong with the query", func() {
+			BeforeEach(func() {
+
+			})
+
+			It("returns nil list of orders and an error", func() {
+
+			})
+		})
+	})
+
+	Context("Calling CreateBalance method", func() {
+		When("the balance is successfully created", func() {
+			BeforeEach(func() {
+
+			})
+
+			It("returns nil error", func() {
+
+			})
+		})
+
+		When("something has gone wrong with the query", func() {
+			BeforeEach(func() {
+
+			})
+
+			It("returns an error", func() {
+
+			})
+		})
+	})
+
+	Context("Calling GetBalance method", func() {
+		When("there is no error", func() {
+			BeforeEach(func() {
+
+			})
+
+			It("returns a balance and nil error", func() {
+
+			})
+		})
+
+		When("something has gone wrong with the query", func() {
+			BeforeEach(func() {
+
+			})
+
+			It("returns nil balance and an error", func() {
+
+			})
+		})
+	})
+
+	Context("Calling WithdrawFromBalance method", func() {
+		When("everything is right", func() {
+			BeforeEach(func() {
+
+			})
+
+			It("returns nil error", func() {
+
+			})
+		})
+
+		When("balance not enough to withdraw", func() {
+			BeforeEach(func() {
+
+			})
+
+			It("returns negative balance error", func() {
+
+			})
+		})
+
+		When("something has gone wrong with the queries", func() {
+			BeforeEach(func() {
+
+			})
+
+			It("returns an error", func() {
+
+			})
+		})
+	})
+
+	Context("Calling GetListOfWithdrawals method", func() {
+		When("withdrawals exist", func() {
+			BeforeEach(func() {
+
+			})
+
+			It("returns a non-empty list of withdrawals and nil error", func() {
+
+			})
+		})
+
+		When("withdrawals don't exist", func() {
+			BeforeEach(func() {
+
+			})
+
+			It("returns an empty list of withdrawals and nil error", func() {
+
+			})
+		})
+
+		When("something has gone wrong with the query", func() {
+			BeforeEach(func() {
+
+			})
+
+			It("returns nil list of withdrawals and an error", func() {
+
+			})
+		})
+	})
+
+	Context("Calling GetListOfOrdersToProcess method", func() {
+		When("orders to process exist", func() {
+			BeforeEach(func() {
+
+			})
+
+			It("returns a non-empty list of orders and nil error", func() {
+
+			})
+		})
+
+		When("orders to process don't exist", func() {
+			BeforeEach(func() {
+
+			})
+
+			It("returns an empty list of orders and nil error", func() {
+
+			})
+		})
+
+		When("something has gone wrong with the query", func() {
+			BeforeEach(func() {
+
+			})
+
+			It("returns nil list of orders and an error", func() {
+
+			})
+		})
+	})
+
+	Context("Calling UpdateBalanceAccrued method", func() {
+		When("everything is right", func() {
+			BeforeEach(func() {
+
+			})
+
+			It("returns nil error", func() {
+
+			})
+		})
+
+		When("something has gone wrong with the queries", func() {
+			BeforeEach(func() {
+
+			})
+
+			It("returns an error", func() {
+
 			})
 		})
 	})
