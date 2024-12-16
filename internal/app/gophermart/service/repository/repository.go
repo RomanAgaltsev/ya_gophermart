@@ -5,15 +5,13 @@ import (
     "database/sql"
     "errors"
     "fmt"
-    "time"
 
-    "github.com/RomanAgaltsev/ya_gophermart/internal/config"
-    "github.com/RomanAgaltsev/ya_gophermart/internal/database"
     "github.com/RomanAgaltsev/ya_gophermart/internal/database/queries"
     "github.com/RomanAgaltsev/ya_gophermart/internal/model"
 
     "github.com/cenkalti/backoff/v4"
     "github.com/jackc/pgerrcode"
+    "github.com/jackc/pgx/v5"
     "github.com/jackc/pgx/v5/pgconn"
     "github.com/jackc/pgx/v5/pgxpool"
 )
@@ -28,17 +26,25 @@ type conflictOrder struct {
     err   error
 }
 
-func New(cfg *config.Config) (*Repository, error) {
-    // Create context
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
+type PgxPool interface {
+    Close()
+    Acquire(ctx context.Context) (c *pgxpool.Conn, err error)
+    AcquireFunc(ctx context.Context, f func(*pgxpool.Conn) error) error
+    AcquireAllIdle(ctx context.Context) []*pgxpool.Conn
+    Reset()
+    Config() *pgxpool.Config
+    Stat() *pgxpool.Stat
+    Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+    Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+    QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+    SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults
+    Begin(ctx context.Context) (pgx.Tx, error)
+    BeginTx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, error)
+    CopyFrom(ctx context.Context, tableName pgx.Identifier, columnNames []string, rowSrc pgx.CopyFromSource) (int64, error)
+    Ping(ctx context.Context) error
+}
 
-    // Create connection pool
-    dbpool, err := database.NewConnectionPool(ctx, cfg.DatabaseURI)
-    if err != nil {
-        return nil, err
-    }
-
+func New(dbpool PgxPool) (*Repository, error) {
     // Return Repository struct with new queries
     return &Repository{
         db: dbpool,
@@ -47,7 +53,7 @@ func New(cfg *config.Config) (*Repository, error) {
 }
 
 type Repository struct {
-    db *pgxpool.Pool
+    db PgxPool
     q  *queries.Queries
 }
 
