@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"github.com/RomanAgaltsev/ya_gophermart/internal/database"
 	"log/slog"
 	"net/http"
 	"os"
@@ -15,7 +16,6 @@ import (
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/repository"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/user"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/config"
-	"github.com/RomanAgaltsev/ya_gophermart/internal/database"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/logger"
 )
 
@@ -92,7 +92,6 @@ func (a *App) initServices() error {
 	if err != nil {
 		return err
 	}
-
 	// Create repository
 	repo, err := repository.New(dbpool)
 	if err != nil {
