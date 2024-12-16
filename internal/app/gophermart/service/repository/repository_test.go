@@ -21,9 +21,9 @@ var _ = Describe("Repository", func() {
 		ctrl *gomock.Controller
 
 		mockSQL  sqlmock.Sqlmock
-		mockPool *pgxpoolmock.MockPgxPool
+		mockPool pgxpoolmock.PgxPool
 
-		repo repository.Repository
+		repo *repository.Repository
 	)
 
 	BeforeEach(func() {
