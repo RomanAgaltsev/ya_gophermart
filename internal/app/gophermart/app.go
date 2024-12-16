@@ -15,6 +15,7 @@ import (
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/repository"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/user"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/config"
+	"github.com/RomanAgaltsev/ya_gophermart/internal/database"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/logger"
 )
 
@@ -82,8 +83,18 @@ func (a *App) initLogger() error {
 
 // initServices initializes application services.
 func (a *App) initServices() error {
+	// Create context
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Create connection pool
+	dbpool, err := database.NewConnectionPool(ctx, a.cfg.DatabaseURI)
+	if err != nil {
+		return err
+	}
+
 	// Create repository
-	repo, err := repository.New(a.cfg)
+	repo, err := repository.New(dbpool)
 	if err != nil {
 		return err
 	}

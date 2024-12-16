@@ -5,10 +5,7 @@ import (
     "database/sql"
     "errors"
     "fmt"
-    "time"
-
-    "github.com/RomanAgaltsev/ya_gophermart/internal/config"
-    "github.com/RomanAgaltsev/ya_gophermart/internal/database"
+ 
     "github.com/RomanAgaltsev/ya_gophermart/internal/database/queries"
     "github.com/RomanAgaltsev/ya_gophermart/internal/model"
 
@@ -28,17 +25,7 @@ type conflictOrder struct {
     err   error
 }
 
-func New(cfg *config.Config) (*Repository, error) {
-    // Create context
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
-
-    // Create connection pool
-    dbpool, err := database.NewConnectionPool(ctx, cfg.DatabaseURI)
-    if err != nil {
-        return nil, err
-    }
-
+func New(dbpool *pgxpool.Pool) (*Repository, error) {
     // Return Repository struct with new queries
     return &Repository{
         db: dbpool,
