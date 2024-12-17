@@ -64,6 +64,13 @@ type Withdrawal struct {
 }
 
 func (w *Withdrawal) Bind(r *http.Request) error {
+	if w.OrderNumber == "" {
+		return fmt.Errorf("order is a required field")
+	}
+	if w.Sum == 0 {
+		return fmt.Errorf("sum cannot be equal zero")
+	}
+
 	return nil
 }
 
