@@ -2,7 +2,7 @@ package repository_test
 
 import (
 	"context"
-	//"database/sql"
+	"errors"
 	"time"
 
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/repository"
@@ -86,7 +86,8 @@ WHERE number = $1
 
 var _ = Describe("Repository", func() {
 	var (
-		err error
+		err                 error
+		errSomethingStrange error
 
 		ctx context.Context
 
@@ -94,12 +95,27 @@ var _ = Describe("Repository", func() {
 		mockPool *pgxpool.MockPgxPool
 		repo     *repository.Repository
 
-		user       *model.User
-		expectUser *model.User
-		login      string
+		rowID int32
+
+		// User
+		userLogin     string
+		userPassword  string
+		userCreatedAt time.Time
+
+		user         model.User
+		userExpected model.User
+
+		// Order
+		orderNumber     string
+		orderUploadedAt time.Time
+
+		order         model.Order
+		orderExpected model.Order
 	)
 
 	BeforeEach(func() {
+		errSomethingStrange = errors.New("something strange")
+
 		ctx = context.Background()
 
 		ctrl = gomock.NewController(GinkgoT())
@@ -118,41 +134,41 @@ var _ = Describe("Repository", func() {
 	Context("Calling CreateUser method", func() {
 		When("user doesn't exist", func() {
 			BeforeEach(func() {
-				login := "user"
-				password := "password"
-				var insertedID int32 = 1
+				rowID = 1
+				userLogin = "user"
+				userPassword = "password"
 
-				user = &model.User{
-					Login:    login,
-					Password: password,
+				user = model.User{
+					Login:    userLogin,
+					Password: userPassword,
 				}
-				pgxRow := pgxpool.NewRow(insertedID).WithError(nil)
-				mockPool.EXPECT().QueryRow(ctx, createUser, login, password).Return(pgxRow)
+				pgxRow := pgxpool.NewRow(rowID).WithError(nil)
+				mockPool.EXPECT().QueryRow(ctx, createUser, userLogin, userPassword).Return(pgxRow).Times(1)
 			})
 
 			It("returns nil error", func() {
-				err = repo.CreateUser(ctx, user)
+				err = repo.CreateUser(ctx, &user)
 				Expect(err).ShouldNot(HaveOccurred())
 			})
 		})
 
 		When("user already exist", func() {
 			BeforeEach(func() {
-				login := "user"
-				password := "password"
-				var insertedID int32 = 0
+				rowID = 0
+				userLogin = "user"
+				userPassword = "password"
 
-				user = &model.User{
-					Login:    login,
-					Password: password,
+				user = model.User{
+					Login:    userLogin,
+					Password: userPassword,
 				}
 
-				pgxRow := pgxpool.NewRow(insertedID).WithError(&pgconn.PgError{Code: pgerrcode.IntegrityConstraintViolation})
-				mockPool.EXPECT().QueryRow(ctx, createUser, login, password).Return(pgxRow)
+				pgxRow := pgxpool.NewRow(rowID).WithError(&pgconn.PgError{Code: pgerrcode.IntegrityConstraintViolation})
+				mockPool.EXPECT().QueryRow(ctx, createUser, userLogin, userPassword).Return(pgxRow).Times(1)
 			})
 
 			It("returns data conflict error", func() {
-				err = repo.CreateUser(ctx, user)
+				err = repo.CreateUser(ctx, &user)
 				Expect(err).Should(HaveOccurred())
 				Expect(err).To(Equal(repository.ErrConflict))
 			})
@@ -160,57 +176,65 @@ var _ = Describe("Repository", func() {
 	})
 
 	Context("Calling GetUser method", func() {
-		// TODO
-		XWhen("user doesn't exist", func() {
+		When("user doesn't exist", func() {
 			BeforeEach(func() {
-				var ID int32 = 0
-				login = ""
-				password := ""
-				createdAt := time.Now()
+				rowID = 0
+				userLogin = ""
+				userPassword = ""
+				userCreatedAt = time.Now()
 
-				pgxRow := pgxpool.NewRow(ID, login, password, createdAt)
-				//.WithError(sql.ErrNoRows)
-				mockPool.EXPECT().QueryRow(ctx, getUser, login).Return(pgxRow)
+				pgxRow := pgxpool.NewRow(rowID, userLogin, userPassword, userCreatedAt)
+				mockPool.EXPECT().QueryRow(ctx, getUser, userLogin).Return(pgxRow).Times(1)
 			})
 
-			It("returns nil user and nil error", func() {
-				_, err := repo.GetUser(ctx, login)
-				//Expect(err).Should(HaveOccurred())
+			It("returns empty user and nil error", func() {
+				result, err := repo.GetUser(ctx, userLogin)
 				Expect(err).ShouldNot(HaveOccurred())
-				//Expect(user).To(BeNil())
+				Expect(result.Login).To(BeEmpty())
+				Expect(result.Password).To(BeEmpty())
 			})
 		})
 
 		When("user exists", func() {
 			BeforeEach(func() {
-				var ID int32 = 1
-				login = "user"
-				password := "password"
-				createdAt := time.Now()
+				rowID = 1
+				userLogin = "user"
+				userPassword = "password"
+				userCreatedAt = time.Now()
 
-				expectUser = &model.User{
-					Login:    login,
-					Password: password,
+				userExpected = model.User{
+					Login:    userLogin,
+					Password: userPassword,
 				}
 
-				pgxRow := pgxpool.NewRow(ID, login, password, createdAt)
-				mockPool.EXPECT().QueryRow(ctx, getUser, login).Return(pgxRow)
+				pgxRow := pgxpool.NewRow(rowID, userLogin, userPassword, userCreatedAt)
+				mockPool.EXPECT().QueryRow(ctx, getUser, userLogin).Return(pgxRow).Times(1)
 			})
 
 			It("returns a user and nil error", func() {
-				user, err = repo.GetUser(ctx, login)
+				result, err := repo.GetUser(ctx, userLogin)
 				Expect(err).ShouldNot(HaveOccurred())
-				Expect(*user).To(Equal(*expectUser))
+				Expect(*result).To(Equal(userExpected))
 			})
 		})
 
-		When("something has gone wrong with the query", func() {
+		// Pending - because of exponential backoff it lasts about 10 seconds
+		// Remove 'X' to run
+		XWhen("something has gone wrong with the query", func() {
 			BeforeEach(func() {
+				rowID = 0
+				userLogin = ""
+				userPassword = ""
+				userCreatedAt = time.Now()
 
+				pgxRow := pgxpool.NewRow(rowID, userLogin, userPassword, userCreatedAt).WithError(errSomethingStrange)
+				mockPool.EXPECT().QueryRow(ctx, getUser, userLogin).Return(pgxRow).AnyTimes()
 			})
 
 			It("returns nil user and an error", func() {
-
+				result, err := repo.GetUser(ctx, userLogin)
+				Expect(err).To(HaveOccurred())
+				Expect(result).To(BeNil())
 			})
 		})
 	})
@@ -218,25 +242,61 @@ var _ = Describe("Repository", func() {
 	Context("Calling CreateOrder method", func() {
 		When("order doesn't exist", func() {
 			BeforeEach(func() {
+				rowID = 1
+				userLogin = "user"
+				orderNumber = "12345678903"
 
+				order = model.Order{
+					Login:  userLogin,
+					Number: orderNumber,
+				}
+
+				pgxRow := pgxpool.NewRow(rowID)
+				mockPool.EXPECT().QueryRow(ctx, createOrder, userLogin, orderNumber).Return(pgxRow).Times(1)
 			})
 
 			It("returns nil order and nil error", func() {
-
+				result, err := repo.CreateOrder(ctx, &order)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(result).To(BeNil())
 			})
 		})
 
 		When("order exists", func() {
 			BeforeEach(func() {
+				rowID = 0
+				userLogin = "user"
+				orderNumber = "12345678903"
+				orderUploadedAt = time.Now()
 
+				order = model.Order{
+					Login:  userLogin,
+					Number: orderNumber,
+				}
+				orderExpected = model.Order{
+					Login:      "another user",
+					Number:     orderNumber,
+					Status:     "NEW",
+					Accrual:    0,
+					UploadedAt: orderUploadedAt,
+				}
+
+				pgxRowCreateOrder := pgxpool.NewRow(rowID).WithError(&pgconn.PgError{Code: pgerrcode.IntegrityConstraintViolation})
+				mockPool.EXPECT().QueryRow(ctx, createOrder, userLogin, orderNumber).Return(pgxRowCreateOrder).Times(1)
+
+				pgxRowGetOrder := pgxpool.NewRow(rowID, orderExpected.Login, orderExpected.Number, orderExpected.Status, orderExpected.Accrual, orderExpected.UploadedAt)
+				mockPool.EXPECT().QueryRow(ctx, getOrder, orderNumber).Return(pgxRowGetOrder).Times(1)
 			})
 
 			It("returns the order and data conflict error", func() {
-
+				result, err := repo.CreateOrder(ctx, &order)
+				Expect(err).Should(HaveOccurred())
+				Expect(err).To(Equal(repository.ErrConflict))
+				Expect(*result).To(Equal(orderExpected))
 			})
 		})
 
-		When("something has gone wrong with the query", func() {
+		XWhen("something has gone wrong with the query", func() {
 			BeforeEach(func() {
 
 			})
@@ -247,7 +307,7 @@ var _ = Describe("Repository", func() {
 		})
 	})
 
-	Context("Calling GetListOfOrders method", func() {
+	XContext("Calling GetListOfOrders method", func() {
 		When("orders exist", func() {
 			BeforeEach(func() {
 
@@ -282,15 +342,24 @@ var _ = Describe("Repository", func() {
 	Context("Calling CreateBalance method", func() {
 		When("the balance is successfully created", func() {
 			BeforeEach(func() {
+				rowID = 1
 
+				user = model.User{
+					Login:    "user",
+					Password: "password",
+				}
+
+				pgxRow := pgxpool.NewRow(rowID)
+				mockPool.EXPECT().QueryRow(ctx, createBalance, userLogin).Return(pgxRow).Times(1)
 			})
 
 			It("returns nil error", func() {
-
+				err = repo.CreateBalance(ctx, &user)
+				Expect(err).ShouldNot(HaveOccurred())
 			})
 		})
 
-		When("something has gone wrong with the query", func() {
+		XWhen("something has gone wrong with the query", func() {
 			BeforeEach(func() {
 
 			})
@@ -304,15 +373,31 @@ var _ = Describe("Repository", func() {
 	Context("Calling GetBalance method", func() {
 		When("there is no error", func() {
 			BeforeEach(func() {
+				rowID = 1
+				userLogin = "user"
+				userPassword = "password"
+				var accrued float64 = 500
+				var withdrawn float64 = 50
 
+				user = model.User{
+					Login:    userLogin,
+					Password: userPassword,
+				}
+
+				pgxRow := pgxpool.NewRow(rowID, userLogin, accrued, withdrawn)
+				mockPool.EXPECT().QueryRow(ctx, getBalance, userLogin).Return(pgxRow).Times(1)
 			})
 
 			It("returns a balance and nil error", func() {
-
+				result, err := repo.GetBalance(ctx, &user)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(result).NotTo(BeNil())
+				Expect(result.Current).To(Equal(float64(450)))
+				Expect(result.Withdrawn).To(Equal(float64(50)))
 			})
 		})
 
-		When("something has gone wrong with the query", func() {
+		XWhen("something has gone wrong with the query", func() {
 			BeforeEach(func() {
 
 			})
@@ -323,14 +408,30 @@ var _ = Describe("Repository", func() {
 		})
 	})
 
-	Context("Calling WithdrawFromBalance method", func() {
+	XContext("Calling WithdrawFromBalance method", func() {
 		When("everything is right", func() {
 			BeforeEach(func() {
+				rowID = 1
+				userLogin = "user"
+				orderNumber = "2377225624"
 
+				var accrued float64 = 500
+				var withdrawn float64 = 50
+				var sum float64 = 100
+
+				user = model.User{}
+
+				mockPool.EXPECT().Begin(ctx).Times(1)
+				pgxRowUpdate := pgxpool.NewRow(accrued, withdrawn)
+				mockPool.EXPECT().QueryRow(ctx, updateBalanceWithdrawn, userLogin, withdrawn).Return(pgxRowUpdate).Times(1)
+				pgxRowCreate := pgxpool.NewRow(rowID)
+				mockPool.EXPECT().QueryRow(ctx, createWithdraw, userLogin, orderNumber, sum).Return(pgxRowCreate).Times(1)
+
+				err = repo.WithdrawFromBalance(ctx, &user, orderNumber, sum)
 			})
 
 			It("returns nil error", func() {
-
+				Expect(err).ShouldNot(HaveOccurred())
 			})
 		})
 
@@ -344,7 +445,7 @@ var _ = Describe("Repository", func() {
 			})
 		})
 
-		When("something has gone wrong with the queries", func() {
+		XWhen("something has gone wrong with the queries", func() {
 			BeforeEach(func() {
 
 			})
@@ -355,7 +456,7 @@ var _ = Describe("Repository", func() {
 		})
 	})
 
-	Context("Calling GetListOfWithdrawals method", func() {
+	XContext("Calling GetListOfWithdrawals method", func() {
 		When("withdrawals exist", func() {
 			BeforeEach(func() {
 
@@ -376,7 +477,7 @@ var _ = Describe("Repository", func() {
 			})
 		})
 
-		When("something has gone wrong with the query", func() {
+		XWhen("something has gone wrong with the query", func() {
 			BeforeEach(func() {
 
 			})
@@ -387,7 +488,7 @@ var _ = Describe("Repository", func() {
 		})
 	})
 
-	Context("Calling GetListOfOrdersToProcess method", func() {
+	XContext("Calling GetListOfOrdersToProcess method", func() {
 		When("orders to process exist", func() {
 			BeforeEach(func() {
 
@@ -408,7 +509,7 @@ var _ = Describe("Repository", func() {
 			})
 		})
 
-		When("something has gone wrong with the query", func() {
+		XWhen("something has gone wrong with the query", func() {
 			BeforeEach(func() {
 
 			})
@@ -419,7 +520,7 @@ var _ = Describe("Repository", func() {
 		})
 	})
 
-	Context("Calling UpdateBalanceAccrued method", func() {
+	XContext("Calling UpdateBalanceAccrued method", func() {
 		When("everything is right", func() {
 			BeforeEach(func() {
 
@@ -430,7 +531,7 @@ var _ = Describe("Repository", func() {
 			})
 		})
 
-		When("something has gone wrong with the queries", func() {
+		XWhen("something has gone wrong with the queries", func() {
 			BeforeEach(func() {
 
 			})
