@@ -11,6 +11,7 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
+// NewConnectionPool creates new pgx connection pool and runs migrations.
 func NewConnectionPool(ctx context.Context, databaseURI string) (*pgxpool.Pool, error) {
 	// Create new connection pool
 	dbpool, err := pgxpool.New(ctx, databaseURI)
@@ -31,6 +32,7 @@ func NewConnectionPool(ctx context.Context, databaseURI string) (*pgxpool.Pool, 
 	return dbpool, nil
 }
 
+// Migrate runs migrations.
 func Migrate(ctx context.Context, dbpool *pgxpool.Pool, databaseURI string) {
 	// Set migrations directory
 	goose.SetBaseFS(migrations.Migrations)

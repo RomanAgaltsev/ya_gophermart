@@ -45,6 +45,7 @@ func Initialize() error {
 	return nil
 }
 
+// NewRequestLogger creates new slog request logger for the chi router. 
 func NewRequestLogger() func(handler http.Handler) http.Handler {
 	return slogchi.NewWithConfig(slog.Default(), slogchi.Config{
 		DefaultLevel:     slog.LevelInfo,

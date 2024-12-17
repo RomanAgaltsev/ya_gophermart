@@ -1,9 +1,9 @@
 package auth_test
 
 import (
-	"github.com/RomanAgaltsev/ya_gophermart/internal/model"
 	"net/http"
 
+	"github.com/RomanAgaltsev/ya_gophermart/internal/model"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/pkg/auth"
 
 	"github.com/go-chi/jwtauth/v5"

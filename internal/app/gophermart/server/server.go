@@ -25,7 +25,7 @@ const (
 
 var ErrRunAddressIsEmpty = fmt.Errorf("configuration: HTTP server run address is empty")
 
-// New creates new http server with middleware and routes
+// New creates new http server with middleware and routes.
 func New(cfg *config.Config, userService user.Service, orderService order.Service, balanceService balance.Service) (*http.Server, error) {
 	if cfg.RunAddress == "" {
 		return nil, ErrRunAddressIsEmpty

@@ -54,6 +54,7 @@ func NewHandler(cfg *config.Config, userService user.Service, orderService order
 
 // UserRegistrion handles user registration request.
 func (h *Handler) UserRegistrion(w http.ResponseWriter, r *http.Request) {
+    // Get user from request
     var usr model.User
     if err := render.Bind(r, &usr); err != nil {
         _ = render.Render(w, r, ErrorRenderer(err))
@@ -105,6 +106,7 @@ func (h *Handler) UserRegistrion(w http.ResponseWriter, r *http.Request) {
 
 // UserLogin handles user login request.
 func (h *Handler) UserLogin(w http.ResponseWriter, r *http.Request) {
+    // Get user from request
     var usr model.User
     if err := render.Bind(r, &usr); err != nil {
         _ = render.Render(w, r, ErrorRenderer(err))
@@ -117,7 +119,7 @@ func (h *Handler) UserLogin(w http.ResponseWriter, r *http.Request) {
     // Login user
     err := h.userService.Login(ctx, &usr)
     if err != nil && !errors.Is(err, user.ErrWrongLoginPassword) {
-        // There is an error, but not with login/password pair
+        // There is an error, but not with the login/password pair
         slog.Info(msgUserLogin, argError, err.Error())
         _ = render.Render(w, r, ServerErrorRenderer(err))
         return
@@ -146,17 +148,21 @@ func (h *Handler) UserLogin(w http.ResponseWriter, r *http.Request) {
     w.WriteHeader(http.StatusOK)
 }
 
+// OrderNumberUpload handles order number upload request.
 func (h *Handler) OrderNumberUpload(w http.ResponseWriter, r *http.Request) {
+    // Read order number from request body
     rBody, _ := io.ReadAll(r.Body)
     defer func() { _ = r.Body.Close() }()
 
     orderNumber := string(rBody)
 
+    // Check if the order number is empty
     if orderNumber == "" {
         _ = render.Render(w, r, ErrBadRequest)
         return
     }
 
+    // Check if the order number is valid with Luhn algorithm
     if !orderpkg.IsNumberValid(orderNumber) {
         _ = render.Render(w, r, ErrInvalidOrderNumber)
         return
@@ -165,17 +171,20 @@ func (h *Handler) OrderNumberUpload(w http.ResponseWriter, r *http.Request) {
     // Get context from request
     ctx := r.Context()
 
+    // Get user from request
     usr, err := auth.UserFromRequest(r, h.cfg.SecretKey)
     if err != nil {
         _ = render.Render(w, r, ErrorRenderer(err))
         return
     }
 
+    // Create order structure
     ordr := model.Order{
         Login:  usr.Login,
         Number: orderNumber,
     }
 
+    // Create order with order service
     err = h.orderService.Create(ctx, &ordr)
     if err != nil && !errors.Is(err, order.ErrOrderUploadedByThisLogin) && !errors.Is(err, order.ErrOrderUploadedByAnotherLogin) {
         // There is an error, but not a conflict
@@ -201,16 +210,19 @@ func (h *Handler) OrderNumberUpload(w http.ResponseWriter, r *http.Request) {
     w.WriteHeader(http.StatusAccepted)
 }
 
+// OrderListRequest handles order list request.
 func (h *Handler) OrderListRequest(w http.ResponseWriter, r *http.Request) {
     // Get context from request
     ctx := r.Context()
 
+    // Get user from request
     usr, err := auth.UserFromRequest(r, h.cfg.SecretKey)
     if err != nil {
         _ = render.Render(w, r, ErrorRenderer(err))
         return
     }
 
+    // Get a list of user orders with order service
     orders, err := h.orderService.UserOrders(ctx, usr)
     if err != nil {
         slog.Info(msgOrderList, argError, err.Error())
@@ -218,30 +230,36 @@ func (h *Handler) OrderListRequest(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    // Check if there is something to return
     if len(orders) == 0 {
         _ = render.Render(w, r, ErrNoOrders)
         return
     }
 
+    // Set header
     w.Header().Set("Content-type", contentTypeJSON)
     w.WriteHeader(http.StatusOK)
 
+    // Render the list of orders to response
     if err := render.Render(w, r, orders); err != nil {
         _ = render.Render(w, r, ErrorRenderer(err))
         return
     }
 }
 
+// UserBalanceRequest handles user balance request.
 func (h *Handler) UserBalanceRequest(w http.ResponseWriter, r *http.Request) {
     // Get context from request
     ctx := r.Context()
 
+    // Get user from request
     usr, err := auth.UserFromRequest(r, h.cfg.SecretKey)
     if err != nil {
         _ = render.Render(w, r, ErrorRenderer(err))
         return
     }
 
+    // Get user balance with balance service
     userBalance, err := h.balanceService.Get(ctx, usr)
     if err != nil {
         slog.Info(msgUserBalance, argError, err.Error())
@@ -249,23 +267,27 @@ func (h *Handler) UserBalanceRequest(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    // Set header
     w.Header().Set("Content-type", contentTypeJSON)
     w.WriteHeader(http.StatusOK)
 
+    // Render user balance to response
     if err := render.Render(w, r, userBalance); err != nil {
         _ = render.Render(w, r, ErrorRenderer(err))
         return
     }
 }
 
+// WithdrawRequest handles withdraw from user balance request.
 func (h *Handler) WithdrawRequest(w http.ResponseWriter, r *http.Request) {
+    // Get withdraw from request
     var withdrawal model.Withdrawal
-
     if err := render.Bind(r, &withdrawal); err != nil {
         _ = render.Render(w, r, ErrBadRequest)
         return
     }
 
+    // Check if order number is valid with Luhn algorithm
     if !orderpkg.IsNumberValid(withdrawal.OrderNumber) {
         _ = render.Render(w, r, ErrInvalidOrderNumber)
         return
@@ -274,12 +296,14 @@ func (h *Handler) WithdrawRequest(w http.ResponseWriter, r *http.Request) {
     // Get context from request
     ctx := r.Context()
 
+    // Get user from request
     usr, err := auth.UserFromRequest(r, h.cfg.SecretKey)
     if err != nil {
         _ = render.Render(w, r, ErrorRenderer(err))
         return
     }
 
+    // Register withdraw from user balance with balance service
     err = h.balanceService.Withdraw(ctx, usr, withdrawal.OrderNumber, withdrawal.Sum)
     if err != nil && !errors.Is(err, balance.ErrNotEnoughBalance) {
         // There is an error, but not with balance
@@ -298,16 +322,19 @@ func (h *Handler) WithdrawRequest(w http.ResponseWriter, r *http.Request) {
     w.WriteHeader(http.StatusOK)
 }
 
+// WithdrawalsInformationRequest handles list of user withdrawals request.
 func (h *Handler) WithdrawalsInformationRequest(w http.ResponseWriter, r *http.Request) {
     // Get context from request
     ctx := r.Context()
 
+    // Get user from request
     usr, err := auth.UserFromRequest(r, h.cfg.SecretKey)
     if err != nil {
         _ = render.Render(w, r, ErrorRenderer(err))
         return
     }
 
+    // Get a list of user withdrawals
     withdrawals, err := h.balanceService.Withdrawals(ctx, usr)
     if err != nil {
         // There is an error, but not with withdrawals
@@ -316,14 +343,17 @@ func (h *Handler) WithdrawalsInformationRequest(w http.ResponseWriter, r *http.R
         return
     }
 
+    // Check if there is something to return
     if len(withdrawals) == 0 {
         _ = render.Render(w, r, ErrNoWithdrawals)
         return
     }
 
+    // Set header
     w.Header().Set("Content-type", contentTypeJSON)
     w.WriteHeader(http.StatusOK)
 
+    // Render the list of user withdrawals to the response
     if err := render.Render(w, r, withdrawals); err != nil {
         _ = render.Render(w, r, ErrorRenderer(err))
         return

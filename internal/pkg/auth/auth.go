@@ -65,31 +65,39 @@ func CheckPasswordHash(password, hash string) bool {
     return err == nil
 }
 
+// UserFromRequest extracts user (login) from the given HTTP request.
 func UserFromRequest(r *http.Request, secretKey string) (*model.User, error) {
+    // Create new JWT auth
     ja := NewAuth(secretKey)
 
+    // Get JWT token from the cookie
     tokenString := jwtauth.TokenFromCookie(r)
     if tokenString == "" {
         return nil, ErrInvalidUser
     }
 
+    // Decode token string
     token, err := ja.Decode(tokenString)
     if err != nil {
         return nil, err
     }
 
+    // Get claims
     claims := token.PrivateClaims()
 
+    // Get login in interface type
     loginInterface, ok := claims[string(UserLoginClaimName)]
     if !ok {
         return nil, ErrInvalidUser
     }
 
+    // Convert login to string
     login, ok := loginInterface.(string)
     if !ok {
         return nil, ErrInvalidUser
     }
 
+    // Return user structure
     return &model.User{
         Login: login,
     }, nil

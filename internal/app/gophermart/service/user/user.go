@@ -19,16 +19,19 @@ var (
     ErrWrongLoginPassword  = fmt.Errorf("wrong login/password")
 )
 
+// Service is the user service interface.
 type Service interface {
     Register(ctx context.Context, user *model.User) error
     Login(ctx context.Context, user *model.User) error
 }
 
+// Repository is the user service repository interface.
 type Repository interface {
     CreateUser(ctx context.Context, user *model.User) error
     GetUser(ctx context.Context, login string) (*model.User, error)
 }
 
+// NewService creates new user service.
 func NewService(repository Repository, cfg *config.Config) (Service, error) {
     return &service{
         repository: repository,
@@ -36,11 +39,13 @@ func NewService(repository Repository, cfg *config.Config) (Service, error) {
     }, nil
 }
 
+// service is the user service structure.
 type service struct {
     repository Repository
     cfg        *config.Config
 }
 
+// Register creates new user.
 func (s *service) Register(ctx context.Context, user *model.User) error {
     // Replace password with hash
     hash, err := auth.HashPassword(user.Password)
@@ -65,6 +70,7 @@ func (s *service) Register(ctx context.Context, user *model.User) error {
     return nil
 }
 
+// Login compares user password hash with password
 func (s *service) Login(ctx context.Context, user *model.User) error {
     // Ger user from repository
     userInRepo, err := s.repository.GetUser(ctx, user.Login)
