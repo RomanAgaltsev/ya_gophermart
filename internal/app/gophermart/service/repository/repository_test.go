@@ -3,85 +3,17 @@ package repository_test
 import (
 	"context"
 	"errors"
+	//"github.com/jackc/pgx/v5"
 	"time"
 
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/repository"
-	"github.com/RomanAgaltsev/ya_gophermart/internal/mocks/repository"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/model"
 
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"go.uber.org/mock/gomock"
-)
-
-const (
-	createBalance = `-- name: CreateBalance :one
-INSERT INTO balance (login)
-VALUES ($1) RETURNING id
-`
-	createOrder = `-- name: CreateOrder :one
-INSERT INTO orders (login, number)
-VALUES ($1, $2) RETURNING id
-`
-	createUser = `-- name: CreateUser :one
-INSERT INTO users (login, password)
-VALUES ($1, $2) RETURNING id
-`
-	createWithdraw = `-- name: CreateWithdraw :one
-INSERT INTO withdrawals (login, order_number, sum)
-VALUES ($1, $2, $3) RETURNING id
-`
-	getBalance = `-- name: GetBalance :one
-SELECT id, login, accrued, withdrawn
-FROM balance
-WHERE login = $1 LIMIT 1
-`
-	getOrder = `-- name: GetOrder :one
-SELECT id, login, number, status, accrual, uploaded_at
-FROM orders
-WHERE number = $1 LIMIT 1
-`
-	getUser = `-- name: GetUser :one
-SELECT id, login, password, created_at
-FROM users
-WHERE login = $1 LIMIT 1
-`
-	listOrders = `-- name: ListOrders :many
-SELECT id, login, number, status, accrual, uploaded_at
-FROM orders
-WHERE login = $1
-ORDER BY uploaded_at DESC
-`
-	listOrdersToProcess = `-- name: ListOrdersToProcess :many
-SELECT id, login, number, status, accrual, uploaded_at
-FROM orders
-WHERE status = 'NEW'
-   OR status = 'PROCESSING'
-`
-	listWithdrawals = `-- name: ListWithdrawals :many
-SELECT id, login, order_number, sum, processed_at
-FROM withdrawals
-WHERE login = $1
-ORDER BY processed_at DESC
-`
-	updateBalanceAccrued = `-- name: UpdateBalanceAccrued :one
-UPDATE balance
-SET accrued = $2
-WHERE login = $1 RETURNING accrued, withdrawn
-`
-	updateBalanceWithdrawn = `-- name: UpdateBalanceWithdrawn :one
-UPDATE balance
-SET withdrawn = withdrawn + $2
-WHERE login = $1 RETURNING accrued, withdrawn
-`
-	updateOrder = `-- name: UpdateOrder :exec
-UPDATE orders
-SET status  = $2,
-    accrual = $3
-WHERE number = $1
-`
+	"github.com/pashagolub/pgxmock/v4"
 )
 
 var _ = Describe("Repository", func() {
@@ -91,8 +23,7 @@ var _ = Describe("Repository", func() {
 
 		ctx context.Context
 
-		ctrl     *gomock.Controller
-		mockPool *pgxpool.MockPgxPool
+		mockPool pgxmock.PgxPoolIface
 		repo     *repository.Repository
 
 		rowID int32
@@ -118,17 +49,15 @@ var _ = Describe("Repository", func() {
 
 		ctx = context.Background()
 
-		ctrl = gomock.NewController(GinkgoT())
-		Expect(ctrl).ShouldNot(BeNil())
-
-		mockPool = pgxpool.NewMockPgxPool(ctrl)
+		mockPool, err = pgxmock.NewPool()
+		Expect(err).ShouldNot(HaveOccurred())
 
 		repo, err = repository.New(mockPool)
 		Expect(err).ShouldNot(HaveOccurred())
 	})
 
 	AfterEach(func() {
-		ctrl.Finish()
+		mockPool.Close()
 	})
 
 	Context("Calling CreateUser method", func() {
@@ -142,8 +71,17 @@ var _ = Describe("Repository", func() {
 					Login:    userLogin,
 					Password: userPassword,
 				}
-				pgxRow := pgxpool.NewRow(rowID).WithError(nil)
-				mockPool.EXPECT().QueryRow(ctx, createUser, userLogin, userPassword).Return(pgxRow).Times(1)
+
+				rs := pgxmock.NewRows([]string{"id"}).
+					AddRow(rowID)
+				mockPool.ExpectQuery("INSERT .+ VALUES .+").
+					WithArgs(userLogin, userPassword).
+					WillReturnRows(rs).
+					Times(1)
+			})
+			AfterEach(func() {
+				err = mockPool.ExpectationsWereMet()
+				Expect(err).ShouldNot(HaveOccurred())
 			})
 
 			It("returns nil error", func() {
@@ -163,8 +101,17 @@ var _ = Describe("Repository", func() {
 					Password: userPassword,
 				}
 
-				pgxRow := pgxpool.NewRow(rowID).WithError(&pgconn.PgError{Code: pgerrcode.IntegrityConstraintViolation})
-				mockPool.EXPECT().QueryRow(ctx, createUser, userLogin, userPassword).Return(pgxRow).Times(1)
+				rs := pgxmock.NewRows([]string{"id"}).
+					AddRow(rowID).
+					RowError(int(rowID), &pgconn.PgError{Code: pgerrcode.IntegrityConstraintViolation})
+				mockPool.ExpectQuery("INSERT .+ VALUES .+").
+					WithArgs(userLogin, userPassword).
+					WillReturnRows(rs).
+					Times(1)
+			})
+			AfterEach(func() {
+				err = mockPool.ExpectationsWereMet()
+				Expect(err).ShouldNot(HaveOccurred())
 			})
 
 			It("returns data conflict error", func() {
@@ -183,8 +130,16 @@ var _ = Describe("Repository", func() {
 				userPassword = ""
 				userCreatedAt = time.Now()
 
-				pgxRow := pgxpool.NewRow(rowID, userLogin, userPassword, userCreatedAt)
-				mockPool.EXPECT().QueryRow(ctx, getUser, userLogin).Return(pgxRow).Times(1)
+				rs := pgxmock.NewRows([]string{"id", "login", "password", "createdat"}).
+					AddRow(rowID, userLogin, userPassword, userCreatedAt)
+				mockPool.ExpectQuery("SELECT .+ FROM users WHERE .+").
+					WithArgs(userLogin).
+					WillReturnRows(rs).
+					Times(1)
+			})
+			AfterEach(func() {
+				err = mockPool.ExpectationsWereMet()
+				Expect(err).ShouldNot(HaveOccurred())
 			})
 
 			It("returns empty user and nil error", func() {
@@ -207,8 +162,16 @@ var _ = Describe("Repository", func() {
 					Password: userPassword,
 				}
 
-				pgxRow := pgxpool.NewRow(rowID, userLogin, userPassword, userCreatedAt)
-				mockPool.EXPECT().QueryRow(ctx, getUser, userLogin).Return(pgxRow).Times(1)
+				rs := pgxmock.NewRows([]string{"id", "login", "password", "createdat"}).
+					AddRow(rowID, userLogin, userPassword, userCreatedAt)
+				mockPool.ExpectQuery("SELECT .+ FROM users WHERE .+").
+					WithArgs(userLogin).
+					WillReturnRows(rs).
+					Times(1)
+			})
+			AfterEach(func() {
+				err = mockPool.ExpectationsWereMet()
+				Expect(err).ShouldNot(HaveOccurred())
 			})
 
 			It("returns a user and nil error", func() {
@@ -218,7 +181,7 @@ var _ = Describe("Repository", func() {
 			})
 		})
 
-		// Pending - because of exponential backoff it lasts about 10 seconds
+		// Pending - because of exponential backoff it lasts about 10 minutes
 		// Remove 'X' to run
 		XWhen("something has gone wrong with the query", func() {
 			BeforeEach(func() {
@@ -227,8 +190,16 @@ var _ = Describe("Repository", func() {
 				userPassword = ""
 				userCreatedAt = time.Now()
 
-				pgxRow := pgxpool.NewRow(rowID, userLogin, userPassword, userCreatedAt).WithError(errSomethingStrange)
-				mockPool.EXPECT().QueryRow(ctx, getUser, userLogin).Return(pgxRow).AnyTimes()
+				rs := pgxmock.NewRows([]string{"id", "login", "password", "createdat"}).
+					RowError(1, errSomethingStrange)
+				mockPool.ExpectQuery("SELECT .+ FROM users WHERE .+").
+					WithArgs(userLogin).
+					WillReturnRows(rs).
+					Times(1)
+			})
+			AfterEach(func() {
+				err = mockPool.ExpectationsWereMet()
+				Expect(err).ShouldNot(HaveOccurred())
 			})
 
 			It("returns nil user and an error", func() {
@@ -251,8 +222,16 @@ var _ = Describe("Repository", func() {
 					Number: orderNumber,
 				}
 
-				pgxRow := pgxpool.NewRow(rowID)
-				mockPool.EXPECT().QueryRow(ctx, createOrder, userLogin, orderNumber).Return(pgxRow).Times(1)
+				rs := pgxmock.NewRows([]string{"id"}).
+					AddRow(rowID)
+				mockPool.ExpectQuery("INSERT INTO orders .+ VALUES .+").
+					WithArgs(userLogin, orderNumber).
+					WillReturnRows(rs).
+					Times(1)
+			})
+			AfterEach(func() {
+				err = mockPool.ExpectationsWereMet()
+				Expect(err).ShouldNot(HaveOccurred())
 			})
 
 			It("returns nil order and nil error", func() {
@@ -281,11 +260,24 @@ var _ = Describe("Repository", func() {
 					UploadedAt: orderUploadedAt,
 				}
 
-				pgxRowCreateOrder := pgxpool.NewRow(rowID).WithError(&pgconn.PgError{Code: pgerrcode.IntegrityConstraintViolation})
-				mockPool.EXPECT().QueryRow(ctx, createOrder, userLogin, orderNumber).Return(pgxRowCreateOrder).Times(1)
+				rsCreate := pgxmock.NewRows([]string{"id"}).
+					AddRow(rowID).
+					RowError(int(rowID), &pgconn.PgError{Code: pgerrcode.IntegrityConstraintViolation})
+				mockPool.ExpectQuery("INSERT INTO orders .+ VALUES .+").
+					WithArgs(userLogin, orderNumber).
+					WillReturnRows(rsCreate).
+					Times(1)
 
-				pgxRowGetOrder := pgxpool.NewRow(rowID, orderExpected.Login, orderExpected.Number, orderExpected.Status, orderExpected.Accrual, orderExpected.UploadedAt)
-				mockPool.EXPECT().QueryRow(ctx, getOrder, orderNumber).Return(pgxRowGetOrder).Times(1)
+				rsGet := pgxmock.NewRows([]string{"id", "login", "ordernumber", "status", "accrual", "uploadedat"}).
+					AddRow(rowID, orderExpected.Login, orderExpected.Number, orderExpected.Status, orderExpected.Accrual, orderExpected.UploadedAt)
+				mockPool.ExpectQuery("SELECT .+ FROM orders .+").
+					WithArgs(orderNumber).
+					WillReturnRows(rsGet).
+					Times(1)
+			})
+			AfterEach(func() {
+				err = mockPool.ExpectationsWereMet()
+				Expect(err).ShouldNot(HaveOccurred())
 			})
 
 			It("returns the order and data conflict error", func() {
@@ -293,16 +285,6 @@ var _ = Describe("Repository", func() {
 				Expect(err).Should(HaveOccurred())
 				Expect(err).To(Equal(repository.ErrConflict))
 				Expect(*result).To(Equal(orderExpected))
-			})
-		})
-
-		XWhen("something has gone wrong with the query", func() {
-			BeforeEach(func() {
-
-			})
-
-			It("returns nil order and an error", func() {
-
 			})
 		})
 	})
@@ -327,16 +309,6 @@ var _ = Describe("Repository", func() {
 
 			})
 		})
-
-		When("something has gone wrong with the query", func() {
-			BeforeEach(func() {
-
-			})
-
-			It("returns nil list of orders and an error", func() {
-
-			})
-		})
 	})
 
 	Context("Calling CreateBalance method", func() {
@@ -349,23 +321,21 @@ var _ = Describe("Repository", func() {
 					Password: "password",
 				}
 
-				pgxRow := pgxpool.NewRow(rowID)
-				mockPool.EXPECT().QueryRow(ctx, createBalance, userLogin).Return(pgxRow).Times(1)
+				rs := pgxmock.NewRows([]string{"id"}).
+					AddRow(rowID)
+				mockPool.ExpectQuery("INSERT INTO balance .+ VALUES .+").
+					WithArgs(userLogin).
+					WillReturnRows(rs).
+					Times(1)
+			})
+			AfterEach(func() {
+				err = mockPool.ExpectationsWereMet()
+				Expect(err).ShouldNot(HaveOccurred())
 			})
 
 			It("returns nil error", func() {
 				err = repo.CreateBalance(ctx, &user)
 				Expect(err).ShouldNot(HaveOccurred())
-			})
-		})
-
-		XWhen("something has gone wrong with the query", func() {
-			BeforeEach(func() {
-
-			})
-
-			It("returns an error", func() {
-
 			})
 		})
 	})
@@ -384,8 +354,12 @@ var _ = Describe("Repository", func() {
 					Password: userPassword,
 				}
 
-				pgxRow := pgxpool.NewRow(rowID, userLogin, accrued, withdrawn)
-				mockPool.EXPECT().QueryRow(ctx, getBalance, userLogin).Return(pgxRow).Times(1)
+				rs := pgxmock.NewRows([]string{"id", "login", "accrued", "withdrawn"}).
+					AddRow(rowID, userLogin, accrued, withdrawn)
+				mockPool.ExpectQuery("SELECT .+ FROM balance .+").
+					WithArgs(userLogin).
+					WillReturnRows(rs).
+					Times(1)
 			})
 
 			It("returns a balance and nil error", func() {
@@ -396,36 +370,50 @@ var _ = Describe("Repository", func() {
 				Expect(result.Withdrawn).To(Equal(float64(50)))
 			})
 		})
-
-		XWhen("something has gone wrong with the query", func() {
-			BeforeEach(func() {
-
-			})
-
-			It("returns nil balance and an error", func() {
-
-			})
-		})
 	})
 
-	XContext("Calling WithdrawFromBalance method", func() {
+	Context("Calling WithdrawFromBalance method", func() {
 		When("everything is right", func() {
 			BeforeEach(func() {
 				rowID = 1
 				userLogin = "user"
 				orderNumber = "2377225624"
 
-				var accrued float64 = 500
-				var withdrawn float64 = 50
+				//				var accrued float64 = 500
+				//				var withdrawn float64 = 50
 				var sum float64 = 100
+				accrued := 500
+				withdrawn := 50
+				//sum := 100
 
 				user = model.User{}
 
-				mockPool.EXPECT().Begin(ctx).Times(1)
-				pgxRowUpdate := pgxpool.NewRow(accrued, withdrawn)
-				mockPool.EXPECT().QueryRow(ctx, updateBalanceWithdrawn, userLogin, withdrawn).Return(pgxRowUpdate).Times(1)
-				pgxRowCreate := pgxpool.NewRow(rowID)
-				mockPool.EXPECT().QueryRow(ctx, createWithdraw, userLogin, orderNumber, sum).Return(pgxRowCreate).Times(1)
+				//				mockPool.EXPECT().Begin(ctx).Times(1)
+				//				pgxRowUpdate := pgxpool.NewRow(accrued, withdrawn)
+				//				mockPool.EXPECT().QueryRow(ctx, updateBalanceWithdrawn, userLogin, withdrawn).Return(pgxRowUpdate).Times(1)
+				//				pgxRowCreate := pgxpool.NewRow(rowID)
+				//				mockPool.EXPECT().QueryRow(ctx, createWithdraw, userLogin, orderNumber, sum).Return(pgxRowCreate).Times(1)
+
+				//mockPool.ExpectBeginTx(pgx.TxOptions{AccessMode: pgx.ReadOnly})
+				//mockPool.ExpectBeginTx(pgx.TxOptions{})
+				mockPool.ExpectBegin()
+
+				rsUpdate := pgxmock.NewRows([]string{"accrued", "withdrawn"}).
+					AddRow(accrued, withdrawn)
+				mockPool.ExpectQuery("UPDATE balance .+ SET .+").
+					WithArgs(userLogin, withdrawn).
+					WillReturnRows(rsUpdate).
+					Times(1)
+
+				rsCreate := pgxmock.NewRows([]string{"id"}).
+					AddRow(rowID)
+				mockPool.ExpectQuery("INSERT INTO withdrawals .+ VALUES .+").
+					WithArgs(userLogin, orderNumber, sum).
+					WillReturnRows(rsCreate).
+					Times(1)
+
+				mockPool.ExpectCommit()
+				mockPool.ExpectRollback()
 
 				err = repo.WithdrawFromBalance(ctx, &user, orderNumber, sum)
 			})
@@ -441,16 +429,6 @@ var _ = Describe("Repository", func() {
 			})
 
 			It("returns negative balance error", func() {
-
-			})
-		})
-
-		XWhen("something has gone wrong with the queries", func() {
-			BeforeEach(func() {
-
-			})
-
-			It("returns an error", func() {
 
 			})
 		})
