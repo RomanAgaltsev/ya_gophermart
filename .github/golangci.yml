@@ -1,7 +1,5 @@
 linters:
     enable-all: true
-    enable:
-        - ginkgolinter
     disable:
     # Note: deprecated linters
         - gomnd
