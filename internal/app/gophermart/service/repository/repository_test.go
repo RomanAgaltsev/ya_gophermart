@@ -3,7 +3,7 @@ package repository_test
 import (
 	"context"
 	"errors"
-	//"github.com/jackc/pgx/v5"
+	"github.com/RomanAgaltsev/ya_gophermart/internal/database/queries"
 	"time"
 
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/repository"
@@ -42,6 +42,12 @@ var _ = Describe("Repository", func() {
 
 		order         model.Order
 		orderExpected model.Order
+
+		// Withdrawal
+		withdrawalProcessedAt time.Time
+
+		// Accrual
+		orderAccrual model.OrderAccrual
 	)
 
 	BeforeEach(func() {
@@ -255,7 +261,7 @@ var _ = Describe("Repository", func() {
 				orderExpected = model.Order{
 					Login:      "another user",
 					Number:     orderNumber,
-					Status:     "NEW",
+					Status:     queries.OrderStatusNEW,
 					Accrual:    0,
 					UploadedAt: orderUploadedAt,
 				}
@@ -289,24 +295,62 @@ var _ = Describe("Repository", func() {
 		})
 	})
 
-	XContext("Calling GetListOfOrders method", func() {
+	Context("Calling GetListOfOrders method", func() {
 		When("orders exist", func() {
 			BeforeEach(func() {
+				rowID = 1
+				userLogin = "user"
+				userPassword = "password"
+				orderStatus := queries.OrderStatusNEW
+				var accrual float64 = 100
+				orderUploadedAt = time.Now()
 
+				rs := pgxmock.NewRows([]string{"id", "login", "ordernumber", "status", "accrual", "uploadedat"}).
+					AddRow(rowID, userLogin, orderNumber, orderStatus, accrual, orderUploadedAt)
+				mockPool.ExpectQuery("SELECT .+ FROM orders .+").
+					WithArgs(userLogin).
+					WillReturnRows(rs).
+					Times(1)
+			})
+			AfterEach(func() {
+				err = mockPool.ExpectationsWereMet()
+				Expect(err).ShouldNot(HaveOccurred())
 			})
 
 			It("returns a non-empty list of orders and nil error", func() {
-
+				result, err := repo.GetListOfOrders(ctx, &user)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(result).NotTo(BeNil())
+				Expect(len(result)).To(Equal(1))
 			})
 		})
 
 		When("orders don't exist", func() {
 			BeforeEach(func() {
+				userLogin = "user"
 
+				user = model.User{
+					Login:    userLogin,
+					Password: userPassword,
+				}
+
+				rs := pgxmock.NewRows([]string{"id", "login", "ordernumber", "status", "accrual", "uploadedat"})
+				mockPool.ExpectQuery("SELECT .+ FROM orders .+").
+					WithArgs(userLogin).
+					WillReturnRows(rs).
+					Times(1)
+
+			})
+			AfterEach(func() {
+				err = mockPool.ExpectationsWereMet()
+				Expect(err).ShouldNot(HaveOccurred())
 			})
 
 			It("returns an empty list of orders and nil error", func() {
-
+				result, err := repo.GetListOfOrders(ctx, &user)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(result).NotTo(BeNil())
+				Expect(len(result)).To(Equal(0))
 			})
 		})
 	})
@@ -361,6 +405,10 @@ var _ = Describe("Repository", func() {
 					WillReturnRows(rs).
 					Times(1)
 			})
+			AfterEach(func() {
+				err = mockPool.ExpectationsWereMet()
+				Expect(err).ShouldNot(HaveOccurred())
+			})
 
 			It("returns a balance and nil error", func() {
 				result, err := repo.GetBalance(ctx, &user)
@@ -377,31 +425,24 @@ var _ = Describe("Repository", func() {
 			BeforeEach(func() {
 				rowID = 1
 				userLogin = "user"
+				userPassword = "password"
 				orderNumber = "2377225624"
 
-				//				var accrued float64 = 500
-				//				var withdrawn float64 = 50
+				var accrued float64 = 500
+				var withdrawn float64 = 50
 				var sum float64 = 100
-				accrued := 500
-				withdrawn := 50
-				//sum := 100
 
-				user = model.User{}
+				user = model.User{
+					Login:    userLogin,
+					Password: userPassword,
+				}
 
-				//				mockPool.EXPECT().Begin(ctx).Times(1)
-				//				pgxRowUpdate := pgxpool.NewRow(accrued, withdrawn)
-				//				mockPool.EXPECT().QueryRow(ctx, updateBalanceWithdrawn, userLogin, withdrawn).Return(pgxRowUpdate).Times(1)
-				//				pgxRowCreate := pgxpool.NewRow(rowID)
-				//				mockPool.EXPECT().QueryRow(ctx, createWithdraw, userLogin, orderNumber, sum).Return(pgxRowCreate).Times(1)
-
-				//mockPool.ExpectBeginTx(pgx.TxOptions{AccessMode: pgx.ReadOnly})
-				//mockPool.ExpectBeginTx(pgx.TxOptions{})
 				mockPool.ExpectBegin()
 
 				rsUpdate := pgxmock.NewRows([]string{"accrued", "withdrawn"}).
 					AddRow(accrued, withdrawn)
-				mockPool.ExpectQuery("UPDATE balance .+ SET .+").
-					WithArgs(userLogin, withdrawn).
+				mockPool.ExpectQuery("UPDATE balance SET .+").
+					WithArgs(userLogin, sum).
 					WillReturnRows(rsUpdate).
 					Times(1)
 
@@ -417,6 +458,10 @@ var _ = Describe("Repository", func() {
 
 				err = repo.WithdrawFromBalance(ctx, &user, orderNumber, sum)
 			})
+			AfterEach(func() {
+				err = mockPool.ExpectationsWereMet()
+				Expect(err).ShouldNot(HaveOccurred())
+			})
 
 			It("returns nil error", func() {
 				Expect(err).ShouldNot(HaveOccurred())
@@ -425,97 +470,207 @@ var _ = Describe("Repository", func() {
 
 		When("balance not enough to withdraw", func() {
 			BeforeEach(func() {
+				rowID = 1
+				userLogin = "user"
+				userPassword = "password"
+				orderNumber = "2377225624"
 
+				var accrued float64 = 100
+				var withdrawn float64 = 150
+				var sum float64 = 100
+
+				user = model.User{
+					Login:    userLogin,
+					Password: userPassword,
+				}
+
+				mockPool.ExpectBegin()
+
+				rsUpdate := pgxmock.NewRows([]string{"accrued", "withdrawn"}).
+					AddRow(accrued, withdrawn)
+				mockPool.ExpectQuery("UPDATE balance SET .+").
+					WithArgs(userLogin, sum).
+					WillReturnRows(rsUpdate).
+					Times(1)
+
+				mockPool.ExpectRollback()
+
+				err = repo.WithdrawFromBalance(ctx, &user, orderNumber, sum)
+			})
+			AfterEach(func() {
+				err = mockPool.ExpectationsWereMet()
+				Expect(err).ShouldNot(HaveOccurred())
 			})
 
 			It("returns negative balance error", func() {
-
+				Expect(err).To(Equal(repository.ErrNegativeBalance))
 			})
 		})
 	})
 
-	XContext("Calling GetListOfWithdrawals method", func() {
+	Context("Calling GetListOfWithdrawals method", func() {
 		When("withdrawals exist", func() {
 			BeforeEach(func() {
+				rowID = 1
+				userLogin = "user"
+				userPassword = "password"
+				var sum float64 = 50
 
+				user = model.User{
+					Login:    userLogin,
+					Password: userPassword,
+				}
+
+				rs := pgxmock.NewRows([]string{"id", "login", "ordernumber", "sum", "processedat"}).
+					AddRow(rowID, userLogin, orderNumber, sum, withdrawalProcessedAt)
+				mockPool.ExpectQuery("SELECT .+ FROM withdrawals .+").
+					WithArgs(userLogin).
+					WillReturnRows(rs).
+					Times(1)
+			})
+			AfterEach(func() {
+				err = mockPool.ExpectationsWereMet()
+				Expect(err).ShouldNot(HaveOccurred())
 			})
 
 			It("returns a non-empty list of withdrawals and nil error", func() {
-
+				result, err := repo.GetListOfWithdrawals(ctx, &user)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(result).NotTo(BeNil())
+				Expect(len(result)).To(Equal(1))
 			})
 		})
 
 		When("withdrawals don't exist", func() {
 			BeforeEach(func() {
+				userLogin = "user"
 
+				user = model.User{
+					Login:    userLogin,
+					Password: userPassword,
+				}
+
+				rs := pgxmock.NewRows([]string{"id", "login", "ordernumber", "sum", "processedat"})
+				mockPool.ExpectQuery("SELECT .+ FROM withdrawals .+").
+					WithArgs(userLogin).
+					WillReturnRows(rs).
+					Times(1)
+			})
+			AfterEach(func() {
+				err = mockPool.ExpectationsWereMet()
+				Expect(err).ShouldNot(HaveOccurred())
 			})
 
 			It("returns an empty list of withdrawals and nil error", func() {
-
-			})
-		})
-
-		XWhen("something has gone wrong with the query", func() {
-			BeforeEach(func() {
-
-			})
-
-			It("returns nil list of withdrawals and an error", func() {
-
+				result, err := repo.GetListOfWithdrawals(ctx, &user)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(result).NotTo(BeNil())
+				Expect(len(result)).To(Equal(0))
 			})
 		})
 	})
 
-	XContext("Calling GetListOfOrdersToProcess method", func() {
+	Context("Calling GetListOfOrdersToProcess method", func() {
 		When("orders to process exist", func() {
 			BeforeEach(func() {
+				rowID = 1
+				userLogin = "user"
+				orderNumber = "12345678903"
+				orderStatus := queries.OrderStatusNEW
+				var accrual float64 = 100
+				orderUploadedAt = time.Now()
 
+				rs := pgxmock.NewRows([]string{"id", "login", "ordernumber", "status", "accrual", "uploadedat"}).
+					AddRow(rowID, userLogin, orderNumber, orderStatus, accrual, orderUploadedAt)
+				mockPool.ExpectQuery("SELECT .+ FROM orders .+").
+					WillReturnRows(rs).
+					Times(1)
+			})
+			AfterEach(func() {
+				err = mockPool.ExpectationsWereMet()
+				Expect(err).ShouldNot(HaveOccurred())
 			})
 
 			It("returns a non-empty list of orders and nil error", func() {
-
+				result, err := repo.GetListOfOrdersToProcess(ctx)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(result).NotTo(BeNil())
+				Expect(len(result)).To(Equal(1))
 			})
 		})
 
 		When("orders to process don't exist", func() {
 			BeforeEach(func() {
 
+				rs := pgxmock.NewRows([]string{"id", "login", "ordernumber", "status", "accrual", "uploadedat"})
+				mockPool.ExpectQuery("SELECT .+ FROM orders .+").
+					WillReturnRows(rs).
+					Times(1)
+			})
+			AfterEach(func() {
+				err = mockPool.ExpectationsWereMet()
+				Expect(err).ShouldNot(HaveOccurred())
 			})
 
 			It("returns an empty list of orders and nil error", func() {
-
-			})
-		})
-
-		XWhen("something has gone wrong with the query", func() {
-			BeforeEach(func() {
-
-			})
-
-			It("returns nil list of orders and an error", func() {
-
+				result, err := repo.GetListOfOrdersToProcess(ctx)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(result).NotTo(BeNil())
+				Expect(len(result)).To(Equal(0))
 			})
 		})
 	})
 
-	XContext("Calling UpdateBalanceAccrued method", func() {
+	Context("Calling UpdateBalanceAccrued method", func() {
 		When("everything is right", func() {
 			BeforeEach(func() {
+				var accrued float64 = 100
+				var withdrawn float64 = 0
 
+				userLogin = "user"
+				orderNumber = "12345678903"
+				orderStatus := queries.OrderStatusNEW
+
+				order = model.Order{
+					Login:      userLogin,
+					Number:     orderNumber,
+					Status:     orderStatus,
+					Accrual:    0,
+					UploadedAt: time.Now(),
+				}
+				orderAccrual = model.OrderAccrual{
+					OrderNumber: orderNumber,
+					Status:      queries.OrderStatusNEW,
+					Accrual:     accrued,
+				}
+
+				mockPool.ExpectBegin()
+
+				rs := pgxmock.NewRows([]string{"accrued", "withdrawn"}).
+					AddRow(accrued, withdrawn)
+				mockPool.ExpectQuery("UPDATE balance SET .+").
+					WithArgs(userLogin, accrued).
+					WillReturnRows(rs).
+					Times(1)
+
+				resultOrders := pgxmock.NewResult("UPDATE", 1)
+				mockPool.ExpectExec("UPDATE orders SET .+").
+					WithArgs(orderNumber, orderStatus, accrued).
+					WillReturnResult(resultOrders).
+					Times(1)
+
+				mockPool.ExpectCommit()
+				mockPool.ExpectRollback()
+
+			})
+			AfterEach(func() {
+				err = mockPool.ExpectationsWereMet()
+				Expect(err).ShouldNot(HaveOccurred())
 			})
 
 			It("returns nil error", func() {
-
-			})
-		})
-
-		XWhen("something has gone wrong with the queries", func() {
-			BeforeEach(func() {
-
-			})
-
-			It("returns an error", func() {
-
+				err = repo.UpdateBalanceAccrued(ctx, &order, &orderAccrual)
+				Expect(err).ShouldNot(HaveOccurred())
 			})
 		})
 	})
