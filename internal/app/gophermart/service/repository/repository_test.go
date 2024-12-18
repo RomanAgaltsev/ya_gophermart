@@ -3,10 +3,10 @@ package repository_test
 import (
 	"context"
 	"errors"
-	"github.com/RomanAgaltsev/ya_gophermart/internal/database/queries"
 	"time"
 
 	"github.com/RomanAgaltsev/ya_gophermart/internal/app/gophermart/service/repository"
+	"github.com/RomanAgaltsev/ya_gophermart/internal/database/queries"
 	"github.com/RomanAgaltsev/ya_gophermart/internal/model"
 
 	"github.com/jackc/pgerrcode"
