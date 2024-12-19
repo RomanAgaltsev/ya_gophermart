@@ -2,6 +2,7 @@ package api_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -113,7 +114,7 @@ var _ = Describe("Handler", func() {
 		balanceRepository = balanceMocks.NewMockRepository(balanceCtrl)
 		Expect(balanceRepository).ShouldNot(BeNil())
 
-		balanceService, err = balance.NewService(balanceRepository, cfg, false)
+		balanceService, err = balance.NewService(context.Background(), balanceRepository, cfg, false)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(balanceService).ShouldNot(BeNil())
 
