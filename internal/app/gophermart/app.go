@@ -27,6 +27,8 @@ type App struct {
 	userService    user.Service
 	orderService   order.Service
 	balanceService balance.Service
+
+	balanceCancel context.CancelFunc
 }
 
 // New creates new application.
@@ -113,11 +115,14 @@ func (a *App) initServices() error {
 	a.orderService = orderService
 
 	// Create balance service
-	balanceService, err := balance.NewService(repo, a.cfg, true)
+	balanceCtx, balanceCancel := context.WithCancel(context.Background())
+	balanceService, err := balance.NewService(balanceCtx, repo, a.cfg, true)
 	if err != nil {
+		balanceCancel()
 		return nil
 	}
 	a.balanceService = balanceService
+	a.balanceCancel = balanceCancel
 
 	return nil
 }
@@ -149,6 +154,11 @@ func (a *App) runApplication() error {
 	// Graceful shutdown executes in a goroutine
 	go func() {
 		<-quit
+
+		// Stopping order processing
+		slog.Info("stopping order processing")
+		a.balanceCancel()
+		
 		slog.Info("shutting down HTTP server")
 
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
@@ -156,8 +166,7 @@ func (a *App) runApplication() error {
 
 		// Shutdown HTTP server
 		if err := a.server.Shutdown(ctx); err != nil {
-			slog.Error("HTTP server shutdown error", slog.String("error", err.Error()),
-			)
+			slog.Error("HTTP server shutdown error", slog.String("error", err.Error()))
 		}
 
 		close(done)

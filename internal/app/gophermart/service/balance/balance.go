@@ -42,14 +42,14 @@ type Repository interface {
 }
 
 // NewService creates new balance service.
-func NewService(repository Repository, cfg *config.Config, runProcessing bool) (Service, error) {
+func NewService(ctx context.Context, repository Repository, cfg *config.Config, runProcessing bool) (Service, error) {
 	balanceService := &service{
 		repository: repository,
 		cfg:        cfg,
 	}
 	// Run orders processing goroutine only if needed
 	if runProcessing {
-		go balanceService.ordersProcessing()
+		go balanceService.ordersProcessing(ctx)
 	}
 
 	return balanceService, nil
@@ -91,8 +91,10 @@ func (s *service) Withdrawals(ctx context.Context, user *model.User) (model.With
 }
 
 // ordersProcessing runs orders processing every 10 seconds.
-func (s *service) ordersProcessing() {
+func (s *service) ordersProcessing(ctx context.Context) {
 	const ordersProcessingInterval = 10
+
+	slog.Info("starting order processing")
 
 	ticker := time.NewTicker(ordersProcessingInterval * time.Second)
 
@@ -100,6 +102,9 @@ func (s *service) ordersProcessing() {
 		select {
 		case <-ticker.C:
 			s.processOrders()
+		case <-ctx.Done():
+			slog.Info("order processing stopped")
+			return
 		default:
 			continue
 		}
