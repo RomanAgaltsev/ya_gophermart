@@ -1,0 +1,237 @@
+openapi: 3.0.3
+info:
+    title: User Registration and Order Management API
+    description: API for user registration, authentication, working with order numbers and accruals.
+    version: 1.0.0
+
+servers:
+    - url: http://localhost
+      description: Local server
+
+paths:
+    /api/user/register:
+        post:
+            summary: User registration
+            description: Registration of a new user with a unique username and password.
+            operationId: registerUser
+            requestBody:
+                description: Registration data
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                login:
+                                    type: string
+                                    example: "user123"
+                                password:
+                                    type: string
+                                    example: "password123"
+            responses:
+                '200':
+                    description: The user has been successfully registered and authenticated.
+                '400':
+                    description: Invalid request format.
+                '409':
+                    description: The login is already taken.
+                '500':
+                    description: Internal server error.
+
+    /api/user/login:
+        post:
+            summary: User authentication
+            description: Authentication with login and password.
+            operationId: loginUser
+            requestBody:
+                description: Authentication data
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                login:
+                                    type: string
+                                    example: "user123"
+                                password:
+                                    type: string
+                                    example: "password123"
+            responses:
+                '200':
+                    description: The user has been successfully authenticated.
+                '400':
+                    description: Invalid request format.
+                '401':
+                    description: Invalid username/password pair.
+                '500':
+                    description: Internal server error.
+
+    /api/user/orders:
+        post:
+            summary: Uploading the order number
+            description: Uploading the order number, available only to authenticated users.
+            operationId: uploadOrderNumber
+            requestBody:
+                description: Order number
+                content:
+                    text/plain:
+                        schema:
+                            type: string
+                            example: "12345678903"
+            responses:
+                '200':
+                    description: The order number has already been uploaded by this user.
+                '202':
+                    description: The new order number has been accepted for processing.
+                '400':
+                    description: Invalid request format.
+                '401':
+                    description: The user is not authenticated.
+                '409':
+                    description: The order number has already been uploaded by another user.
+                '422':
+                    description: Invalid order number format.
+                '500':
+                    description: Internal server error.
+
+        get:
+            summary: Getting a list of uploaded order numbers
+            description: A list of uploaded order numbers for authenticated users, sorted by upload time.
+            operationId: getOrders
+            responses:
+                '200':
+                    description: List of orders.
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    type: object
+                                    properties:
+                                        number:
+                                            type: string
+                                            example: "9278923470"
+                                        status:
+                                            type: string
+                                            enum:
+                                                - NEW
+                                                - PROCESSING
+                                                - INVALID
+                                                - PROCESSED
+                                        accrual:
+                                            type: number
+                                            format: float
+                                            example: 500
+                                        uploaded_at:
+                                            type: string
+                                            format: date-time
+                                            example: "2020-12-10T15:15:45+03:00"
+                '204':
+                    description: There is no data.
+                '401':
+                    description: The user is not logged in.
+                '500':
+                    description: Internal server error.
+
+    /api/user/balance:
+        get:
+            summary: Getting the user's current balance
+            description: Getting the current balance and the amount of accrual used.
+            operationId: getBalance
+            responses:
+                '200':
+                    description: The balance was successfully received.
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    current:
+                                        type: number
+                                        format: float
+                                        example: 500.5
+                                    withdrawn:
+                                        type: number
+                                        format: float
+                                        example: 42
+                '401':
+                    description: The user is not logged in.
+                '500':
+                    description: Internal server error.
+
+    /api/user/balance/withdraw:
+        post:
+            summary: Request for funds withdrawal
+            description: Withdrawal of funds for payment for a new order.
+            operationId: withdrawBalance
+            requestBody:
+                description: Order number and withdrawal amount
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                order:
+                                    type: string
+                                    example: "2377225624"
+                                sum:
+                                    type: number
+                                    format: float
+                                    example: 751
+            responses:
+                '200':
+                    description: The withdrawal has been successfully made.
+                '401':
+                    description: The user is not logged in.
+                '402':
+                    description: There are not enough funds in the account.
+                '422':
+                    description: Invalid order number.
+                '500':
+                    description: Internal server error.
+
+    /api/user/withdrawals:
+        get:
+            summary: Getting information about the withdrawal of funds
+            description: Getting a list of all withdrawals for an authorized user.
+            operationId: getWithdrawals
+            responses:
+                '200':
+                    description: Information about the withdrawals.
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    type: object
+                                    properties:
+                                        order:
+                                            type: string
+                                            example: "2377225624"
+                                        sum:
+                                            type: number
+                                            format: float
+                                            example: 500
+                                        processed_at:
+                                            type: string
+                                            format: date-time
+                                            example: "2020-12-09T16:09:57+03:00"
+                '204':
+                    description: There is not a single withdrawal.
+                '401':
+                    description: The user is not logged in.
+                '500':
+                    description: Internal server error.
+
+components:
+    securitySchemes:
+        cookieAuth:
+            type: apiKey
+            in: cookie
+            name: auth_token
+        headerAuth:
+            type: apiKey
+            in: header
+            name: Authorization
+    security:
+        - cookieAuth: []
+        - headerAuth: []
