@@ -2,19 +2,16 @@ name: gophermart
 
 services:
     gophermart:
-        depends_on:
-            postgres:
-                condition: service_healthy
-        restart: always
         build:
             context: ../
-            dockerfile: ./cmd/gophermart/Dockerfile
-        image: gophermart:1
+            dockerfile: ./docker/gophermart.dockerfile
+        image: gophermart
         container_name: gophermart
         hostname: gophermart
         ports:
             - "8080:8080"
             - "40000:40000"
+        restart: always
         environment:
             RUN_ADDRESS: ${RUN_ADDRESS:?Please specify the RUN_ADDRESS variable in the .env file}
             DATABASE_URI: ${DATABASE_URI:?Please specify the DATABASE_URI variable in the .env file}
@@ -31,6 +28,27 @@ services:
                 condition: on-failure
         networks:
             - gophermart-network
+        depends_on:
+            postgres:
+                condition: service_healthy
+            accrual:
+                condition: service_started
+
+    accrual:
+        build:
+            context: ../
+            dockerfile: ./docker/accrual.dockerfile
+        image: accrual
+        container_name: accrual
+        restart: always
+        environment:
+            RUN_ADDRESS: ${RUN_ADDRESS:?Please specify the RUN_ADDRESS variable in the .env file}
+            DATABASE_URI: ${DATABASE_URI:?Please specify the DATABASE_URI variable in the .env file}
+        networks:
+            - gophermart-network
+        depends_on:
+            - postgres
+
 
     postgres:
         image: postgres:17
