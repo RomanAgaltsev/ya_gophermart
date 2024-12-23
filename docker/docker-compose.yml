@@ -52,6 +52,7 @@ services:
 
     postgres:
         image: postgres:17
+        container_name: postgres
         restart: unless-stopped
         healthcheck:
             test: ["CMD", "pg_isready", "--quiet", "--dbname", "${POSTGRES_DB}", "--username", "${POSTGRES_USER}"]
