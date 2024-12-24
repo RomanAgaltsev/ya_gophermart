@@ -101,6 +101,7 @@ func (s *service) ordersProcessing(ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
+			slog.Info("order processing execution")
 			s.processOrders()
 		case <-ctx.Done():
 			slog.Info("order processing stopped")
