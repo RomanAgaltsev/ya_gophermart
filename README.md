@@ -31,4 +31,6 @@
 * POSTGRES_APP_PASS - пароль пользователя базы данных приложения
 * POSTGRES_APP_DB - база данных приложения
 
-Запускать docker-compose run следует с указанием подготовленного .env файла.
+Запускать docker-compose следует с указанием подготовленного .env файла:
+
+* docker-compose -f docker/docker-compose.yml --env-file .env build
