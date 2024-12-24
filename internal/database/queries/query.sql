@@ -3,7 +3,7 @@ INSERT INTO users (login, password)
 VALUES ($1, $2) RETURNING id;
 
 -- name: GetUser :one
-SELECT *
+SELECT id, login, password, created_at
 FROM users
 WHERE login = $1 LIMIT 1;
 
@@ -18,18 +18,18 @@ SET status  = $2,
 WHERE number = $1;
 
 -- name: GetOrder :one
-SELECT *
+SELECT id, login, number, status, accrual, uploaded_at
 FROM orders
 WHERE number = $1 LIMIT 1;
 
 -- name: ListOrders :many
-SELECT *
+SELECT id, login, number, status, accrual, uploaded_at
 FROM orders
 WHERE login = $1
 ORDER BY uploaded_at DESC;
 
 -- name: ListOrdersToProcess :many
-SELECT *
+SELECT id, login, number, status, accrual, uploaded_at
 FROM orders
 WHERE status = 'NEW'
    OR status = 'PROCESSING';
@@ -39,7 +39,7 @@ INSERT INTO withdrawals (login, order_number, sum)
 VALUES ($1, $2, $3) RETURNING id;
 
 -- name: ListWithdrawals :many
-SELECT *
+SELECT id, login, order_number, sum, processed_at
 FROM withdrawals
 WHERE login = $1
 ORDER BY processed_at DESC;
@@ -49,7 +49,7 @@ INSERT INTO balance (login)
 VALUES ($1) RETURNING id;
 
 -- name: GetBalance :one
-SELECT *
+SELECT id, login, accrued, withdrawn
 FROM balance
 WHERE login = $1 LIMIT 1;
 
