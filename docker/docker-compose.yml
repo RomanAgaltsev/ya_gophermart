@@ -1,5 +1,4 @@
 name: gophermart
-
 services:
     gophermart:
         build:
