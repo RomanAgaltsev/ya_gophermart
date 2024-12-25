@@ -4,7 +4,7 @@ go 1.22.7
 
 require (
 	github.com/cenkalti/backoff/v4 v4.3.0
-	github.com/go-chi/chi/v5 v5.1.0
+	github.com/go-chi/chi/v5 v5.2.0
 	github.com/go-chi/jwtauth/v5 v5.3.1
 	github.com/go-chi/render v1.0.3
 	github.com/jackc/pgerrcode v0.0.0-20240316143900-6e2875d9b438
