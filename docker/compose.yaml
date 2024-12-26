@@ -1,0 +1,5 @@
+name: gophermart
+
+networks:
+    gophermart-network:
+        driver: bridge
