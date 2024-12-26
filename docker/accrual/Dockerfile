@@ -1,4 +1,4 @@
-FROM debian:11-slim
+FROM ubuntu
 COPY ./cmd/accrual/accrual_linux_amd64 /accrual
-EXPOSE 8080
+EXPOSE 8081
 ENTRYPOINT ["./accrual"]
