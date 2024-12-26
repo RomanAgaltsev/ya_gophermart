@@ -43,6 +43,7 @@ services:
             PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:?Please specify the PGADMIN_DEFAULT_EMAIL variable in the .env file}
             PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:?Please specify the PGADMIN_DEFAULT_PASSWORD variable in the .env file}
             PGADMIN_CONFIG_SERVER_MODE: "False"
+        user: "$UID:$GID"
         volumes:
             - ./volume/pgadmin:/var/lib/pgadmin
         ports:
