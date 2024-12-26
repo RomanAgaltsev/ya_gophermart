@@ -10,7 +10,7 @@ services:
             RUN_ADDRESS: ${RUN_ADDRESS:?Please specify the RUN_ADDRESS variable in the .env file}
             DATABASE_URI: ${DATABASE_URI:?Please specify the DATABASE_URI variable in the .env file}
         ports:
-            - "8080:8080"
+            - "8081:8080"
         networks:
             - gophermart-network
         depends_on:
